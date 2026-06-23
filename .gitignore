@@ -32,3 +32,10 @@ Thumbs.db
 # Temp files
 
 ~*
+
+# NodeJS
+node_modules/
+server/npm-debug.log*
+server/yarn-debug.log*
+server/error.log*
+launcher/dist

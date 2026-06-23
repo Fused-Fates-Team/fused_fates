@@ -1,2 +1,26 @@
-# Auto detect text files and perform LF normalization
-* text=auto
+# Ensure text files use standard Line Feed (LF) line endings
+*.txt text eol=lf
+*.ini text eol=lf
+*.json text eol=lf
+
+# Explicitly treat RPG Maker data files as binary to prevent corruption
+*.rxdata binary
+*.rxproj binary
+
+# Treat all multimedia and graphics assets as binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.bmp binary
+*.ico binary
+
+*.wav binary
+*.mp3 binary
+*.ogg binary
+*.mid binary
+*.midi binary
+
+# Treat font files as binary
+*.ttf binary
+*.otf binary
