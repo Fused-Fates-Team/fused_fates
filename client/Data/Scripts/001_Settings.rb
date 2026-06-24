@@ -77,7 +77,7 @@ module Settings
   NEW_BERRY_PLANTS           = (MECHANICS_GENERATION >= 4)
   # Whether fishing automatically hooks the Pokémon (true), or whether there is
   # a reaction test first (false).
-  FISHING_AUTO_HOOK          = false
+  FISHING_AUTO_HOOK          = true
   # The ID of the common event that runs when the player starts fishing (runs
   # instead of showing the casting animation).
   FISHING_BEGIN_COMMON_EVENT = -1
@@ -96,10 +96,10 @@ module Settings
   # location signpost anyway, so you don't need to list those maps here.
   NO_SIGNPOSTS               = []
   # Whether poisoned Pokémon will lose HP while walking around in the field.
-  POISON_IN_FIELD            = (MECHANICS_GENERATION <= 4)
+  POISON_IN_FIELD            = (MECHANICS_GENERATION <= 5)
   # Whether poisoned Pokémon will faint while walking around in the field
   # (true), or survive the poisoning with 1 HP (false).
-  POISON_FAINT_IN_FIELD      = (MECHANICS_GENERATION <= 3)
+  POISON_FAINT_IN_FIELD      = (MECHANICS_GENERATION <= 5)
 
   #-----------------------------------------------------------------------------
   # Using moves in the overworld

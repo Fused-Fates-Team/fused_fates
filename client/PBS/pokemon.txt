@@ -23113,3 +23113,21 @@ Category = King
 Pokedex = Calyrex is a merciful Pokémon, capable of providing healing and blessings. It reigned over the Galar region in times of yore.
 Generation = 8
 Flags = Legendary
+#-------------------------------
+[FUSION_25132]
+Name = Pikavee
+Types = NORMAL,ELECTRIC
+BaseStats = 55,55,50,90,50,50
+GenderRatio = Female50Percent
+GrowthRate = Medium
+BaseExp = 65
+EVs = SPECIAL_DEFENSE,1,SPEED,1
+CatchRate = 45
+Happiness = 50
+Abilities = STATIC,ADAPTABILITY
+HiddenAbilities = LIGHTNINGROD
+Moves = 1,GROWL,1,TACKLE,1,QUICKATTACK,1,TAILWHIP,1,THUNDERSHOCK,4,THUNDERWAVE,12,NUZZLE,15,DISARMINGVOICE,16,SPARK,20,CHARM,20,SWIFT,25,THUNDERBOLT,25,BITE,30,CHARGE,30,WISH,35,LIGHTSCREEN,40,THUNDER,40,TAKEDOWN,50,DOUBLEEDGE,99,VOLTTACKLE
+EggGroups = Undiscovered
+HatchSteps = 8960
+Height = 0.3
+Weight = 6.5

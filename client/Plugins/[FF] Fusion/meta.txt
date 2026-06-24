@@ -1,0 +1,5 @@
+Name = [FF] Fusion System
+Version = 0.0.1
+Essentials = 21.1
+Credits = MagickaHat
+Link = https://github.com/Fused-Fates-Team/fused_fates
