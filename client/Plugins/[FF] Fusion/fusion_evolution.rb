@@ -30,7 +30,6 @@ end
 #====================================================================
 
 class FusedPokemon < Pokemon
-
   alias_method :fused_check_evolution, :check_evolution_internal
 
   def check_evolution_internal

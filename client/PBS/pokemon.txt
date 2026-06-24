@@ -23116,7 +23116,7 @@ Flags = Legendary
 #-------------------------------
 [FUSION_25132]
 Name = Pikavee
-Types = NORMAL,ELECTRIC
+Types = ELECTRIC,NORMAL
 BaseStats = 55,55,50,90,50,50
 GenderRatio = Female50Percent
 GrowthRate = Medium
@@ -23131,3 +23131,6 @@ EggGroups = Undiscovered
 HatchSteps = 8960
 Height = 0.3
 Weight = 6.5
+Color = Yellow
+Shape = Quadruped
+Category = Evo. Mouse

@@ -4,7 +4,7 @@
 
 module FusedPokemonConfig
   # The ID offset where the custom "Fused" species entries begin in PBS.
-  # Formula: FUSION_START_ID + (body_num * MAX_SPECIES_COUNT) + head_num
+  # Formula: FUSION_START_ID + (head_num * MAX_SPECIES_COUNT) + body_num
   FUSION_START_ID = 1000
 
   # The maximum number of base species to reserve grid spacing for.
@@ -72,6 +72,14 @@ def pbFusePokemon(pkmn_head, pkmn_body)
 
   # Create the new fused entity
   fused_pkmn = FusedPokemon.new(fused_symbol, new_level)
+
+  # Call the fusion scene and animation
+  fusing_scene = PokemonFusing_Scene.new
+
+  fusing_scene.pbStartScene(pkmn_head, pkmn_body)
+  fusing_scene.pbStartFusionAnimation(pkmn_head, pkmn_body)
+  fusing_scene.pbEndFusionAnimation(fused_pkmn)
+  fusing_scene.pbEndScene
 
   # Clone and preserve full parental objects before changing anything
   fused_pkmn.parent_head_pokemon = pkmn_head.clone
@@ -147,7 +155,7 @@ def pbFusePokemon(pkmn_head, pkmn_body)
       ability_map.push(body_ability)
     end
 
-    # Option for fusion's hidden/pbs ability if distinct
+    # Option for fusion's hidden ability if distinct
     if default_fusion_ability && !ability_map.include?(default_fusion_ability)
       fusion_ability_name = GameData::Ability.get(default_fusion_ability).name
       options.push(_INTL("{1} (Fusion Hidden)", fusion_ability_name))
