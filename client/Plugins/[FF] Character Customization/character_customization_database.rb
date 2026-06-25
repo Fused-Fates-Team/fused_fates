@@ -4,7 +4,7 @@
 
 module CharacterCustomization
   # Database of available options
-  CHARACTER_CUSTOMIZATION_DATABASE = {
+  character_customization_database = {
     :HAIR_COLOR => {
       :id => "HAIR_COLOR",
       :names => ["Blonde", "Red", "Brown", "Black"],
