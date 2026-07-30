@@ -1,0 +1,28 @@
+# Screenshots folders
+game/Screenshots/
+
+# Files in the main project folder
+game/errorlog.txt
+game/Game.ini
+game/Game.rxproj
+game/RGSS*.dll
+
+# Common code editor folders & files
+.vscode/
+*.code-workspace
+.idea/
+*.mkproj
+
+# Operating system generated files & folders
+.DS_Store
+.DS_Store?
+ehthumbs.db
+Thumbs.db
+[Dd]esktop.ini
+
+# Temp files
+
+~*
+
+# NodeJS
+node_modules/
