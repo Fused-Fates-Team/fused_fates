@@ -41,8 +41,66 @@ module FusionHandlers
     fused_pkmn.original_head_data = original_head_clone if fused_pkmn.respond_to?(:original_head_data=)
     fused_pkmn.original_body_data = original_body_clone if fused_pkmn.respond_to?(:original_body_data=)
 
-    # TODO: Copy over essential stats/attributes
-    # TODO: Bag and transfer held item
+    # Transfer and combine experience, IVs, and happiness
+    fused_pkmn.exp = (pkmn1.exp + pkmn2.exp) / 2
+    fused_pkmn.iv = {}
+    [:HP, :ATTACK, :DEFENSE, :SPECIAL_ATTACK, :SPECIAL_DEFENSE, :SPEED].each do |stat|
+      value1 = pkmn1.iv[stat] || 0
+      value2 = pkmn2.iv[stat] || 0
+      fused_pkmn.iv[stat] = ((value1 + value2) / 2.0).ceil
+    end
+    fused_pkmn.happiness = [pkmn1.happiness, pkmn2.happiness].sum / 2
+
+    # Handle Held Items (Transfer unequipped items to bag)
+    [pkmn1, pkmn2].each do |source_pkmn|
+      next unless source_pkmn.respond_to?(:item) && source_pkmn.item
+      held_item = source_pkmn.item
+      source_pkmn.item = nil
+
+      # Try adding the item back to the player's bag, otherwise place it onto the fused Pokémon if empty
+      if $bag && $bag.add(held_item)
+        if !fused_pkmn.hasItem?
+          fused_pkmn.item = held_item
+        else
+          $bag.add(held_item)
+        end
+      end
+    end
+
+    # Nature inheritance and selection
+    if fused_pkmn.respond_to?(:nature=)
+      chosen_nature = FusionHandlers.select_fusion_nature(pkmn1, pkmn2, fused_pkmn.name)
+      fused_pkmn.nature = chosen_nature
+    end
+
+    # Ability inheritance and selection
+    if fused_pkmn.respond_to?(:ability=)
+      chosen_ability = FusionHandlers.select_fusion_abilities(pkmn1, pkmn2, fused_pkmn.name)
+      fused_pkmn.ability = chosen_ability if chosen_ability
+    end
+
+    # Move inheritance
+    if pkmn1.respond_to?(:moves) && pkmn2.respond_to?(:moves) && fused_pkmn.respond_to?(:moves)
+      # Collect all moves from both component Pokémon
+      available_moves = []
+      [pkmn1, pkmn2].each do |source|
+        source.moves.each do |move|
+          next unless move && move.id
+          available_moves.push(move.id) unless available_moves.include?(move.id)
+        end
+      end
+
+      # Prompt player to select moves for the fusion
+      selected_move_ids = FusionHandlers.select_fusion_moves(available_moves, fused_pkmn.name)
+      
+      # Assign selected moves to the fused Pokémon
+      fused_pkmn.moves.clear
+      selected_move_ids.each do |move_id|
+        next unless move_id
+        # Directly push a new Pokemon::Move wrapper object
+        fused_pkmn.moves.push(Pokemon::Move.new(move_id))
+      end
+    end
       
     $player.party[index1] = fused_pkmn
     pkmn1 = fused_pkmn
@@ -55,6 +113,109 @@ module FusionHandlers
 
     pbMessage(_INTL("Successfully fused {1} and {2}!", pkmn1.name, pkmn2.name))
     return true
+  end
+
+  # Method for determining the fusion's nature
+  def self.select_fusion_nature(pkmn1, pkmn2, pokemon_name)
+    nature_options = []
+
+    # Collect unique natures from both component Pokémon
+    [pkmn1, pkmn2].each do |pkmn|
+      next unless pkmn.respond_to?(:nature)
+      nature_options.push(pkmn.nature) unless nature_options.include?(pkmn.nature)
+    end
+
+    # Fallback to Hardy or random if natures aren't present
+    if nature_options.empty?
+      nature_options = [:HARDY]
+    end
+
+    # If there are multiple unique natures, prompt the player to choose
+    if nature_options.length > 1
+      pbMessage(_INTL("{1} is a fusion! Please choose its Nature.", pokemon_name))
+      
+      nature_names = nature_options.map { |n| GameData::Nature.get(n).name }
+      choice = pbShowCommands(nil, nature_names, -1)
+      
+      # Default to the first option if cancelled
+      selected_nature = (choice >= 0) ? nature_options[choice] : nature_options[0]
+    else
+      selected_nature = nature_options[0]
+    end
+
+    return selected_nature
+  end
+
+  # Method for determining the fusion's movepool
+  def self.select_fusion_moves(move_ids, pokemon_name)
+    selected_moves = []
+
+    # If the total available pool is 4 or fewer, keep all of them automatically
+    if move_ids.length <= 4
+      return move_ids
+    end
+
+    pbMessage(_INTL("{1} is a fusion! Please choose up to 4 moves for its moveset.", pokemon_name))
+
+    # Loop until 4 moves are selected, or player finishes selection
+    loop do
+      move_list = move_ids.map { |m_id| GameData::Move.get(m_id).name}
+      move_list.push(_INTL("Cancel / Done"))
+
+      choice = pbShowCommands(nil, move_list, -1)
+
+      if choice < 0 || choice == move_list.length - 1
+        # If cancelled early, there is at least whatever they picked so far, or default to first 4
+        break if selected_moves.length > 0
+        selected_moves = move_ids[0, 4]
+        break
+      end
+
+      chosen_move = move_ids[choice]
+
+
+      if selected_moves.include?(chosen_move)
+        pbMessage(_INTL("That move is already selected!"))
+      else
+        selected_moves.push(chosen_move)
+        pbMessage(_INTL("Added {1} to the fusion's moveset ({2}/4).", GameData::Move.get(chosen_move).name, selected_moves.length))
+      end
+
+      break if selected_moves.length >= 4
+    end
+
+    return selected_moves
+  end
+
+  # Method for determining the fusion's ability
+  def self.select_fusion_abilities(pkmn1, pkmn2, pokemon_name)
+    ability_options = []
+
+    # Collect unique abilities from both component Pokémon
+    [pkmn1, pkmn2].each do |pkmn|
+      next unless pkmn.respond_to?(:ability_id) && pkmn.ability_id
+      ability_options.push(pkmn.ability_id) unless ability_options.include?(pkmn.ability_id)
+    end
+
+    # Fallback if the abilities aren't present
+    if ability_options.empty?
+      return nil
+    end
+
+    # If there are multiple unique abilities, prompt the player to choose
+    if ability_options.length > 1
+      pbMessage(_INTL("{1} is a fusion! Please choose its Ability.", pokemon_name))
+      
+      ability_names = ability_options.map { |a_id| GameData::Ability.get(a_id).name }
+      choice = pbShowCommands(nil, ability_names, -1)
+      
+      # Default to the first option if cancelled
+      selected_ability = (choice >= 0) ? ability_options[choice] : ability_options[0]
+    else
+      selected_ability = ability_options[0]
+    end
+
+    return selected_ability
   end
 
   # Unfuse an existing FusedPokemon

@@ -42,8 +42,8 @@ class FusedPokemon < Pokemon
   def types
     return super unless fused?
 
-    head_data = GameData::Species.try_get(@fusion_head)
-    body_data = GameData::Species.try_get(@fusion_body)
+    head_data = GameData::Species.get(@fusion_head)
+    body_data = GameData::Species.get(@fusion_body)
     return super unless head_data && body_data
 
     type1 = head_data.types[0]
