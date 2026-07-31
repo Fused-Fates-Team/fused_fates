@@ -41,14 +41,40 @@ module FusionHandlers
     fused_pkmn.original_head_data = original_head_clone if fused_pkmn.respond_to?(:original_head_data=)
     fused_pkmn.original_body_data = original_body_clone if fused_pkmn.respond_to?(:original_body_data=)
 
-    # Transfer and combine experience, IVs, and happiness
-    fused_pkmn.exp = (pkmn1.exp + pkmn2.exp) / 2
+    # Trainer Inheritance
+    if fused_pkmn.respond_to?(:owner=) && pkmn1.respond_to?(:owner)
+      fused_pkmn.owner = pkmn1.owner.clone
+    else
+      fused_pkmn.owner.name = pkmn1.owner.name
+      fused_pkmn.owner.id = pkmn1.owner.id
+      fused_pkmn.owner.gender = pkmn1.owner.gender
+      fused_pkmn.personalID = pkmn1.personalID
+    end
+
+    # Transfer and combine experience
+    # Calculate level-based weight factor to ensure the higher-level component has a fair impact
+    avg_level = (pkmn1.level + pkmn2.level) / 2.0
+    weight1 = pkmn1.level.to_f / avg_level
+    weight2 = pkmn2.level.to_f / avg_level
+
+    weighted_exp = (pkmn1.exp * weight1 + pkmn2.exp * weight2) / 2.0
+
+    # Apply a Fusion Synergy multiplier
+    fusion_bonus = 1.05
+    calculated_exp = (weighted_exp * fusion_bonus).round
+
+    # Ensure the EXP matches the growth rate minimum for the fused Pokémon's level
+    min_exp_for_level = fused_pkmn.growth_rate.minimum_exp_for_level(fused_pkmn.level)
+    fused_pkmn.exp = [calculated_exp, min_exp_for_level].max
+
+    # Transfer and combine IVs
     fused_pkmn.iv = {}
     [:HP, :ATTACK, :DEFENSE, :SPECIAL_ATTACK, :SPECIAL_DEFENSE, :SPEED].each do |stat|
       value1 = pkmn1.iv[stat] || 0
       value2 = pkmn2.iv[stat] || 0
       fused_pkmn.iv[stat] = ((value1 + value2) / 2.0).ceil
     end
+    # Transfer and combine happiness
     fused_pkmn.happiness = [pkmn1.happiness, pkmn2.happiness].sum / 2
 
     # Handle Held Items (Transfer unequipped items to bag)
@@ -111,7 +137,7 @@ module FusionHandlers
     # Remove the second Pokémon from the party
     $player.party.delete_at(index2)
 
-    pbMessage(_INTL("Successfully fused {1} and {2}!", pkmn1.name, pkmn2.name))
+    pbMessage(_INTL("Successfully fused into {1}!", pkmn1.name))
     return true
   end
 
@@ -132,7 +158,7 @@ module FusionHandlers
 
     # If there are multiple unique natures, prompt the player to choose
     if nature_options.length > 1
-      pbMessage(_INTL("{1} is a fusion! Please choose its Nature.", pokemon_name))
+      pbMessage(_INTL("Please choose {1}'s Nature.", pokemon_name))
       
       nature_names = nature_options.map { |n| GameData::Nature.get(n).name }
       choice = pbShowCommands(nil, nature_names, -1)
@@ -155,7 +181,7 @@ module FusionHandlers
       return move_ids
     end
 
-    pbMessage(_INTL("{1} is a fusion! Please choose up to 4 moves for its moveset.", pokemon_name))
+    pbMessage(_INTL("Please choose up to 4 moves for {1}'s moveset.", pokemon_name))
 
     # Loop until 4 moves are selected, or player finishes selection
     loop do
@@ -204,7 +230,7 @@ module FusionHandlers
 
     # If there are multiple unique abilities, prompt the player to choose
     if ability_options.length > 1
-      pbMessage(_INTL("{1} is a fusion! Please choose its Ability.", pokemon_name))
+      pbMessage(_INTL("Please choose {1}'s Ability.", pokemon_name))
       
       ability_names = ability_options.map { |a_id| GameData::Ability.get(a_id).name }
       choice = pbShowCommands(nil, ability_names, -1)
