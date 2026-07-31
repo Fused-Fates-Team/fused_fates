@@ -41,6 +41,16 @@ module FusionHandlers
     fused_pkmn.original_head_data = original_head_clone if fused_pkmn.respond_to?(:original_head_data=)
     fused_pkmn.original_body_data = original_body_clone if fused_pkmn.respond_to?(:original_body_data=)
 
+    # Shiny Inheritance
+    pkmn1_shiny = pkmn1.respond_to?(:shiny?) ? pkmn1.shiny? : pkmn1.shiny
+    pkmn2_shiny = pkmn2.respond_to?(:shiny?) ? pkmn2.shiny? : pkmn2.shiny
+
+    if pkmn1_shiny || pkmn2_shiny
+      if fused_pkmn.respond_to?(:shiny=)
+        fused_pkmn.shiny = true
+      end
+    end
+
     # Trainer Inheritance
     if fused_pkmn.respond_to?(:owner=) && pkmn1.respond_to?(:owner)
       fused_pkmn.owner = pkmn1.owner.clone
@@ -107,23 +117,24 @@ module FusionHandlers
 
     # Move inheritance
     if pkmn1.respond_to?(:moves) && pkmn2.respond_to?(:moves) && fused_pkmn.respond_to?(:moves)
-      # Collect all moves from both component Pokémon
       available_moves = []
+      
+      # Collect currently learned active moves from both component Pokémon
       [pkmn1, pkmn2].each do |source|
+        next unless source.respond_to?(:moves) && source.moves
         source.moves.each do |move|
           next unless move && move.id
           available_moves.push(move.id) unless available_moves.include?(move.id)
         end
       end
 
-      # Prompt player to select moves for the fusion
+      # Prompt player to select up to 4 moves from the combined active moveset
       selected_move_ids = FusionHandlers.select_fusion_moves(available_moves, fused_pkmn.name)
       
       # Assign selected moves to the fused Pokémon
       fused_pkmn.moves.clear
       selected_move_ids.each do |move_id|
         next unless move_id
-        # Directly push a new Pokemon::Move wrapper object
         fused_pkmn.moves.push(Pokemon::Move.new(move_id))
       end
     end

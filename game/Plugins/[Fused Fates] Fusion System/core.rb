@@ -88,6 +88,53 @@ class FusedPokemon < Pokemon
     return base_stats
   end
 
+  # Returns a combined, unique array of all level-up move IDs from both Components
+  def fusion_level_up_moves
+    return super unless fused?
+
+    head_data = GameData::Species.get(@fusion_head)
+    body_data = GameData::Species.get(@fusion_body)
+    return super unless head_data && body_data
+
+    moves_list = []
+
+    # Helper block to extract move IDs safely 
+    extract_moves = lambda do |species_data|
+      return unless species_data && species_data.respond_to?(:moves) && species_data.moves
+      species_data.moves.each do |move_data|
+        if move_data.is_a?(Array) && move_data.length >= 2
+          moves_list.push([move_data[0], move_data[1]])
+        end
+      end
+    end
+
+    # Collect from both Head and Body components
+    extract_moves.call(head_data)
+    extract_moves.call(body_data)
+
+    # Sort moves by level ascending so they trigger naturally in sequence
+    moves_list.sort_by! { |move| move[0] }
+    return moves_list
+  end
+
+  # Check compatibility for TMs/Tutor moves from both components
+  def compatible_with_move?(move_id)
+    head_data = GameData::Species.get(@fusion_head)
+    body_data = GameData::Species.get(@fusion_body)
+    return super(move_id) unless head_data && body_data
+
+    # Check if either component species is compatible with the move
+    head_compat = head_data.respond_to?(:compatible_with_move?) ? head_data.compatible_with_move?(move_id) : false
+    body_compat = body_data.respond_to?(:compatible_with_move?) ? body_data.compatible_with_move?(move_id) : false
+
+    return head_compat || body_compat || super(move_id)
+  end
+
+  def getMoveList
+    return fusion_level_up_moves if fused?
+    return super
+  end
+
   # Procedural Type System (Head gives Primary type, Body gives Secondary type)
   def types
     return super unless fused?
@@ -110,5 +157,22 @@ class FusedPokemon < Pokemon
   # Ensure type checking methods can read the custom array
   def has_type?(type)
     return types.include?(type)
+  end
+end
+
+#================================================================
+# class Battle
+#================================================================
+class Battle
+  # Alias pbGainExpOne
+  alias_method :fusionGainExpOne, :pbGainExpOne
+  def pgGainExpOne
+    # Learn all moves learned at this level from both components
+    moveList = (pkmn.respond_to?(:fused?) && pkmn.fused?) ? pkmn.fusion_level_up_moves : pkmn.getMoveList
+      moveList.each do |m|
+        pbLearnMove(idxParty, m[1]) if m[0] == curLevel
+      end
+
+    return fusionGainExpOne
   end
 end
