@@ -1,14 +1,14 @@
 #================================================================================================
-# Pokémon Fused Fates Fusion System - handlers
-#================================================================================================
+# Pokémon Fused Fates Fusion System - 002_FusionHandlers.rb
+# ===============================================================================================
 
-#================================================================
+#==================================================================
 # module FusionHandlers
-#================================================================
+#==================================================================
 module FusionHandlers
-  # Fuses two party Pokémon based on their given indexes
-  # Default is index 0 (Head) and index 1 (Body)
-  def self.fuse_party_pokemon(index1 = 0, index2 = 1)
+  # Fuses two party Pokémon
+  def self.fuse_party_pokemon(index1, index2)
+    return false if index1 == index2
     pkmn1 = $player.party[index1]
     pkmn2 = $player.party[index2]
 
@@ -34,14 +34,14 @@ module FusionHandlers
     original_head_clone = pkmn1.clone
     original_body_clone = pkmn2.clone
 
-    # Instantiate a new FusedPokemon taking the place of party slot 1
-    fused_pkmn = FusedPokemon.new(pkmn1.species, pkmn1.level, true, true, pkmn1.species, pkmn2.species, original_head_clone, original_body_clone)
-      
-    # Store the actual original data clones inside accessor variables
-    fused_pkmn.original_head_data = original_head_clone if fused_pkmn.respond_to?(:original_head_data=)
-    fused_pkmn.original_body_data = original_body_clone if fused_pkmn.respond_to?(:original_body_data=)
+    # Create a new FusedPokemon instance
+    fused_pkmn = FusedPokemon.new(pkmn1.species, pkmn1.level, pkmn1.species, pkmn2.species)
 
-    # Shiny Inheritance
+    # Store the actual original data clones inside the correct accessor variables
+    fused_pkmn.original_head_data = original_head_clone
+    fused_pkmn.original_body_data = original_body_clone
+
+    # Shiny inheritance
     pkmn1_shiny = pkmn1.respond_to?(:shiny?) ? pkmn1.shiny? : pkmn1.shiny
     pkmn2_shiny = pkmn2.respond_to?(:shiny?) ? pkmn2.shiny? : pkmn2.shiny
 
@@ -51,7 +51,7 @@ module FusionHandlers
       end
     end
 
-    # Trainer Inheritance
+    # Trainer inheritance
     if fused_pkmn.respond_to?(:owner=) && pkmn1.respond_to?(:owner)
       fused_pkmn.owner = pkmn1.owner.clone
     else
@@ -138,7 +138,7 @@ module FusionHandlers
         fused_pkmn.moves.push(Pokemon::Move.new(move_id))
       end
     end
-      
+
     $player.party[index1] = fused_pkmn
     pkmn1 = fused_pkmn
 
@@ -210,7 +210,6 @@ module FusionHandlers
 
       chosen_move = move_ids[choice]
 
-
       if selected_moves.include?(chosen_move)
         pbMessage(_INTL("That move is already selected!"))
       else
@@ -255,8 +254,7 @@ module FusionHandlers
     return selected_ability
   end
 
-  # Unfuse an existing FusedPokemon
-  def self.unfuse_party_pokemon(index = 0)
+  def self.unfuse_party_pokemon(index)
     pkmn = $player.party[index]
 
     # Ensure slot contains a valid FusedPokemon
@@ -307,8 +305,3 @@ module FusionHandlers
     return true
   end
 end
-
-#================================================================
-# ItemHandlers
-#================================================================
-# TODO: Trigger a party selection screen
