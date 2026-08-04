@@ -20,29 +20,16 @@ class FusedPokemon < Pokemon
 
   # Delegate core attributes to the primary Pokémon
   def species=(species_id)
-    return super(species_id) unless respond_to?(:fused?) && fused?
+    return super(species_id) unless fused?
     
     new_species_data = GameData::Species.get(species_id)
     head_data = GameData::Species.try_get(@fusion_head)
     body_data = GameData::Species.try_get(@fusion_body)
-    
-    head_evolved = false
-    body_evolved = false
 
-    if head_data && head_data.get_evolutions(true).any? { |evo| evo[0] == new_species_data.species }
+    if head_data && head_data.respond_to?(:evolutions) && head_data.evolutions.any? { |evo| evo[0] == new_species_data.species }
       @fusion_head = new_species_data.species
-      head_evolved = true
-    end
-
-    if body_data && body_data.get_evolutions(true).any? { |evo| evo[0] == new_species_data.species }
+    elsif body_data && body_data.respond_to?(:evolutions) && body_data.evolutions.any? { |evo| evo[0] == new_species_data.species }
       @fusion_body = new_species_data.species
-      body_evolved = true
-    end
-
-    if head_evolved || body_evolved
-      @name = nil unless nicknamed?
-      super(@fusion_head)
-      return 
     end
 
     super(species_id)

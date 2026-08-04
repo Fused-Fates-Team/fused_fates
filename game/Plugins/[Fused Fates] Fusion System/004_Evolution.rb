@@ -6,33 +6,30 @@
 # class FusedPokemon
 #==================================================================
 class FusedPokemon < Pokemon
-  
-  def check_evolution_internal
-    # Standard evolution check first.
-    standard_evo = super
+  def check_evolution_internal(&block)
+    # Check standard evolution path first via super
+    standard_evo = super(&block)
     return standard_evo if standard_evo
-    
-    # If no standard evolution was triggered, check fusion components.
+
+    # Check fusion component evolution paths if fused
     return nil unless fused?
-    
-    # Safely fetch component species data structures 
+
     head_data = GameData::Species.try_get(@fusion_head)
     body_data = GameData::Species.try_get(@fusion_body)
 
     [head_data, body_data].each do |comp_data|
-      next unless comp_data && comp_data.respond_to?(:get_evolutions)
+      next unless comp_data && comp_data.respond_to?(:evolutions) && comp_data.evolutions
       
-      # get_evolutions(true) returns an array: [new_species, method, parameter, is_prevolution]
-      comp_data.get_evolutions(true).each do |evo|
+      comp_data.evolutions.each do |evo|
         next if evo[3] # Skip prevolutions
         
-        # Explicitly call the captured block passed by the trigger (level up, item, trade, etc.)
         if block_given?
-          ret2 = block.call(self, evo[0], evo[1], evo[2])
+          ret2 = yield evo[0], evo[1], evo[2]
           return ret2 if ret2
         end
       end
     end
+
     return nil
   end
 end
