@@ -1,11 +1,8 @@
 # Screenshots folders
 game/Screenshots/
 
-# Files in the main project folder
+# Files in the main game folder
 game/errorlog.txt
-game/Game.ini
-game/Game.rxproj
-game/RGSS*.dll
 
 # Common code editor folders & files
 .vscode/

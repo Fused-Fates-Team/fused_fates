@@ -10,6 +10,7 @@ class FusedPokemon
   unless method_defined?(:vanilla_fusion_check_evolution_internal)
     alias_method :vanilla_fusion_check_evolution_internal, :check_evolution_internal
   end
+  
   # check_evolution_internal
   def check_evolution_internal(&block)
     # Run the vanilla check first.

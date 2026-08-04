@@ -61,6 +61,9 @@ module FusionHandlers
       fused_pkmn.personalID = pkmn1.personalID
     end
 
+    # Pokéball inheritance
+    fused_pkmn.poke_ball = pkmn1.poke_ball
+
     # Transfer and combine experience
     # Calculate level-based weight factor to ensure the higher-level component has a fair impact
     avg_level = (pkmn1.level + pkmn2.level) / 2.0
