@@ -1,6 +1,6 @@
 #================================================================================================
 # Pokémon Fused Fates Fusion System - 001_FusedPokemon.rb
-# ===============================================================================================
+#================================================================================================
 
 #==================================================================
 # class FusedPokemon < Pokemon
@@ -18,6 +18,11 @@ class FusedPokemon < Pokemon
     super(head || species, level)
   end
 
+  # Check if the Pokémon is fused
+  def fused?
+    return !@fusion_head.nil? && !@fusion_body.nil?
+  end
+
   # Delegate core attributes to the primary Pokémon
   def species=(species_id)
     return super(species_id) unless fused?
@@ -26,13 +31,29 @@ class FusedPokemon < Pokemon
     head_data = GameData::Species.try_get(@fusion_head)
     body_data = GameData::Species.try_get(@fusion_body)
 
+    head_evolved = (head_data && head_data.evolutions.any? { |evo| evo[0] == species_id })
+    body_evolved = (body_data && body_data.evolutions.any? { |evo| evo[0] == species_id })
+
     if head_data && head_data.respond_to?(:evolutions) && head_data.evolutions.any? { |evo| evo[0] == new_species_data.species }
       @fusion_head = new_species_data.species
     elsif body_data && body_data.respond_to?(:evolutions) && body_data.evolutions.any? { |evo| evo[0] == new_species_data.species }
       @fusion_body = new_species_data.species
+    else
+      @fusion_head = new_species_data.species
+      head_evolved = true
     end
 
-    super(species_id)
+    # If only the body evolved, calling super(species_id) overwrites the base Pokémon
+    if head_evolved
+      @fusion_head = species_id
+      @original_head_data = new_species_data
+      super(@fusion_head)
+    elsif body_evolved
+      @fusion_body = species_id
+      @original_body_data = new_species_data
+    end
+
+    calc_stats
   end
 
   def name
@@ -166,11 +187,6 @@ class FusedPokemon < Pokemon
     b = (body_data.base_exp * 20.0) / body_data.base_stats.values.sum
     
     return ((self.baseStats.values.sum * (h+b))/40.0).round.to_i
-  end
-
-  # Check if the Pokémon is fused
-  def fused?
-    return !@fusion_head.nil? && !@fusion_body.nil?
   end
 
   def play_cry(volume = 90, pitch = nil)

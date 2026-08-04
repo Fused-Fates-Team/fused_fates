@@ -1,35 +1,36 @@
 #================================================================================================
 # Pokémon Fused Fates Fusion System - 004_Evolution.rb
-# ===============================================================================================
+#================================================================================================
 
 #==================================================================
-# class FusedPokemon
+# class FusedPokemon < Pokemon
 #==================================================================
-class FusedPokemon < Pokemon
+class FusedPokemon
+  # alias_method check_evolution_internal
+  unless method_defined?(:vanilla_fusion_check_evolution_internal)
+    alias_method :vanilla_fusion_check_evolution_internal, :check_evolution_internal
+  end
+  # check_evolution_internal
   def check_evolution_internal(&block)
-    # Check standard evolution path first via super
-    standard_evo = super(&block)
-    return standard_evo if standard_evo
+    # Run the vanilla check first. 
+    vanilla_evo = vanilla_fusion_check_evolution_internal(&block)
+    return vanilla_evo if vanilla_evo
+    
+    # Stop here if it is a standard, non-fused Pokémon.
+    return nil unless respond_to?(:fused?) && fused?
 
-    # Check fusion component evolution paths if fused
-    return nil unless fused?
-
-    head_data = GameData::Species.try_get(@fusion_head)
-    body_data = GameData::Species.try_get(@fusion_body)
-
-    [head_data, body_data].each do |comp_data|
-      next unless comp_data && comp_data.respond_to?(:evolutions) && comp_data.evolutions
+    #Iterate through the Head and Body.
+    [@fusion_head, @fusion_body].compact.each do |comp_species|
+      comp_data = GameData::Species.try_get(comp_species)
+      next unless comp_data && comp_data.evolutions
       
       comp_data.evolutions.each do |evo|
-        next if evo[3] # Skip prevolutions
-        
-        if block_given?
-          ret2 = yield evo[0], evo[1], evo[2]
-          return ret2 if ret2
-        end
+        # Evolutions are yielded as: pkmn, target_species, method, parameter
+        ret = yield self, evo[0], evo[1], evo[2]
+        return ret if ret # Return the new species ID immediately if successful
       end
     end
-
+    
     return nil
   end
 end
