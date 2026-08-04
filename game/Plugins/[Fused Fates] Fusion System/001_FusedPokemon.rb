@@ -46,11 +46,21 @@ class FusedPokemon < Pokemon
     # If only the body evolved, calling super(species_id) overwrites the base Pokémon
     if head_evolved
       @fusion_head = species_id
-      @original_head_data = new_species_data
+      if @original_head_data.is_a?(Pokemon)
+        @original_head_data.species = species_id
+        @original_head_data.calc_stats if @original_head_data.respond_to?(:calc_stats)
+      else
+        @original_head_data = Pokemon.new(species_id, self.level)
+      end
       super(@fusion_head)
     elsif body_evolved
       @fusion_body = species_id
-      @original_body_data = new_species_data
+      if @original_body_data.is_a?(Pokemon)
+        @original_body_data.species = species_id
+        @original_body_data.calc_stats if @original_body_data.respond_to?(:calc_stats)
+      else
+        @original_body_data = Pokemon.new(species_id, self.level)
+      end
     end
 
     calc_stats

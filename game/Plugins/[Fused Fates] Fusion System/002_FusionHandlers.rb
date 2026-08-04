@@ -269,25 +269,44 @@ module FusionHandlers
       return false
     end
 
-    # Retrieve stored original clones if available, otherwise fallback to creating new ones
-    if pkmn.respond_to?(:original_head_data) && pkmn.respond_to?(:original_body_data) && pkmn.original_head_data && pkmn.original_body_data
-     original_head = pkmn.original_head_data
-     original_body = pkmn.original_body_data
+    # Retrieve stored original clones if available and valid (Pokemon instance), otherwise fallback to creating new ones
+    if pkmn.respond_to?(:original_head_data) && pkmn.original_head_data.is_a?(Pokemon)
+      original_head = pkmn.original_head_data
     else
-     # Fallback safety if clones weren't stored
-     original_head = Pokemon.new(pkmn.fusion_head, pkmn.level)
-     original_body = Pokemon.new(pkmn.fusion_body, pkmn.level)
+      original_head = Pokemon.new(pkmn.fusion_head, pkmn.level)
     end
 
-    # Distribute experience gained during fusion between the two restored clones
+    if pkmn.respond_to?(:original_body_data) && pkmn.original_body_data.is_a?(Pokemon)
+      original_body = pkmn.original_body_data
+    else
+      original_body = Pokemon.new(pkmn.fusion_body, pkmn.level)
+    end
+
+    # Balanced EXP Redistribution 
     if pkmn.respond_to?(:exp) && original_head.respond_to?(:exp=) && original_body.respond_to?(:exp=)
-      gained_exp = [0, pkmn.exp - (original_head.exp || 0)].max
-      shared_exp_boost = gained_exp / 2
+      # Determine baseline starting EXP of both components before fusion
+      base_head_exp = original_head.exp || 0
+      base_body_exp = original_body.exp || 0
+      initial_combined_exp = base_head_exp + base_body_exp
+
+      # Calculate total net EXP earned during the fusion period safely
+      total_fused_exp = pkmn.exp
+      net_gained_exp = [0, total_fused_exp - initial_combined_exp].max
+
+      # If the fused pokemon has less exp than the combined starting pool (edge case),
+      # fallback to distributing current total relative to their original proportions
+      if total_fused_exp < initial_combined_exp
+        original_head.exp = total_fused_exp / 2
+        original_body.exp = total_fused_exp / 2
+      else
+        # Split the newly earned EXP evenly between the two components
+        shared_exp_boost = net_gained_exp / 2
+
+        original_head.exp = base_head_exp + shared_exp_boost
+        original_body.exp = base_body_exp + shared_exp_boost
+      end
       
-      original_head.exp += shared_exp_boost
-      original_body.exp += shared_exp_boost
-      
-      # Refresh levels based on updated experience pools
+      # Refresh levels and stats based on corrected experience pools
       original_head.calc_stats if original_head.respond_to?(:calc_stats)
       original_body.calc_stats if original_body.respond_to?(:calc_stats)
     end

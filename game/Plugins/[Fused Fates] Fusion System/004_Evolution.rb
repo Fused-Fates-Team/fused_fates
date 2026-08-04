@@ -12,14 +12,14 @@ class FusedPokemon
   end
   # check_evolution_internal
   def check_evolution_internal(&block)
-    # Run the vanilla check first. 
+    # Run the vanilla check first.
     vanilla_evo = vanilla_fusion_check_evolution_internal(&block)
     return vanilla_evo if vanilla_evo
     
-    # Stop here if it is a standard, non-fused Pokémon.
+    # Stop here if it is a standard, non-fused Pokémon
     return nil unless respond_to?(:fused?) && fused?
 
-    #Iterate through the Head and Body.
+    # Iterate through the Head and Body
     [@fusion_head, @fusion_body].compact.each do |comp_species|
       comp_data = GameData::Species.try_get(comp_species)
       next unless comp_data && comp_data.evolutions
