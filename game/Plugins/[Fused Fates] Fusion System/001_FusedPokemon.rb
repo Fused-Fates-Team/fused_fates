@@ -27,43 +27,21 @@ class FusedPokemon < Pokemon
   def species=(species_id)
     return super(species_id) unless fused?
     
-    new_species_data = GameData::Species.get(species_id)
     head_data = GameData::Species.try_get(@fusion_head)
     body_data = GameData::Species.try_get(@fusion_body)
 
     head_evolved = (head_data && head_data.evolutions.any? { |evo| evo[0] == species_id })
     body_evolved = (body_data && body_data.evolutions.any? { |evo| evo[0] == species_id })
 
-    if head_data && head_data.respond_to?(:evolutions) && head_data.evolutions.any? { |evo| evo[0] == new_species_data.species }
-      @fusion_head = new_species_data.species
-    elsif body_data && body_data.respond_to?(:evolutions) && body_data.evolutions.any? { |evo| evo[0] == new_species_data.species }
-      @fusion_body = new_species_data.species
-    else
-      @fusion_head = new_species_data.species
-      head_evolved = true
-    end
-
-    # If only the body evolved, calling super(species_id) overwrites the base Pokémon
     if head_evolved
       @fusion_head = species_id
-      if @original_head_data.is_a?(Pokemon)
-        @original_head_data.species = species_id
-        @original_head_data.calc_stats if @original_head_data.respond_to?(:calc_stats)
-      else
-        @original_head_data = Pokemon.new(species_id, self.level)
-      end
-      super(@fusion_head)
+      @original_head_data.species = species_id if @original_head_data.is_a?(Pokemon)
     elsif body_evolved
       @fusion_body = species_id
-      if @original_body_data.is_a?(Pokemon)
-        @original_body_data.species = species_id
-        @original_body_data.calc_stats if @original_body_data.respond_to?(:calc_stats)
-      else
-        @original_body_data = Pokemon.new(species_id, self.level)
-      end
+      @original_body_data.species = species_id if @original_body_data.is_a?(Pokemon)
     end
 
-    calc_stats
+    super(species_id)
   end
 
   def name

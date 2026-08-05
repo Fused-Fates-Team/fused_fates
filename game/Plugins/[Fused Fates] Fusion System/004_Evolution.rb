@@ -3,36 +3,82 @@
 #================================================================================================
 
 #==================================================================
-# class FusedPokemon < Pokemon
+# class FusedPokemon
 #==================================================================
 class FusedPokemon
   # alias_method check_evolution_internal
-  unless method_defined?(:vanilla_fusion_check_evolution_internal)
-    alias_method :vanilla_fusion_check_evolution_internal, :check_evolution_internal
+  unless method_defined?(:vanilla_check_evolution_internal)
+    alias_method :vanilla_check_evolution_internal, :check_evolution_internal
   end
   
   # check_evolution_internal
   def check_evolution_internal(&block)
-    # Run the vanilla check first.
-    vanilla_evo = vanilla_fusion_check_evolution_internal(&block)
-    return vanilla_evo if vanilla_evo
-    
-    # Stop here if it is a standard, non-fused Pokémon
-    return nil unless respond_to?(:fused?) && fused?
+    return nil if @__evaluating_fusion_evo
+    @__evaluating_fusion_evo = true
 
-    # Iterate through the Head and Body
-    [@fusion_head, @fusion_body].compact.each do |comp_species|
-      comp_data = GameData::Species.try_get(comp_species)
-      next unless comp_data && comp_data.evolutions
-      
-      comp_data.evolutions.each do |evo|
-        # Evolutions are yielded as: pkmn, target_species, method, parameter
-        ret = yield self, evo[0], evo[1], evo[2]
-        return ret if ret # Return the new species ID immediately if successful
+    current_head = respond_to?(:fusion_head) ? self.fusion_head : @fusion_head
+    current_body = respond_to?(:fusion_body) ? self.fusion_body : @fusion_body
+
+    begin
+      # Fused Pokémon Logic
+      if respond_to?(:fused?) && fused?
+        valid_fusion_evo = nil
+        
+        # Check Head component evolution
+        if current_head && !valid_fusion_evo
+          head_data = GameData::Species.try_get(current_head)
+          if head_data && head_data.evolutions
+            head_data.evolutions.each do |evo|
+              target_head, evo_method, evo_parameter = evo
+              
+              # Construct and validate the resulting fusion species symbol
+              new_fusion_sym = :"#{target_head}_#{current_body}"
+              next unless GameData::Species.exists?(new_fusion_sym)
+              
+              # Evaluate condition
+              if block_given?
+                ret = block.call(self, new_fusion_sym, evo_method, evo_parameter)
+                next unless ret
+              end
+              
+              valid_fusion_evo = new_fusion_sym
+              break
+            end
+          end
+        end
+        
+        # Check Body component evolution
+        if current_body && !valid_fusion_evo
+          body_data = GameData::Species.try_get(current_body)
+          if body_data && body_data.evolutions
+            body_data.evolutions.each do |evo|
+              target_body, evo_method, evo_parameter = evo
+              
+              # Construct and validate the resulting fusion species symbol
+              new_fusion_sym = :"#{current_head}_#{target_body}"
+              next unless GameData::Species.exists?(new_fusion_sym)
+              
+              # Evaluate condition
+              if block_given?
+                ret = block.call(self, new_fusion_sym, evo_method, evo_parameter)
+                next unless ret
+              end
+              
+              valid_fusion_evo = new_fusion_sym
+              break
+            end
+          end
+        end
+        
+        return valid_fusion_evo if valid_fusion_evo
       end
+
+      # Vanilla Fallback - For base species or pre-defined Fused-to-Fused evolutions in PBS
+      return vanilla_check_evolution_internal(&block)
+
+    ensure
+      @__evaluating_fusion_evo = false
     end
-    
-    return nil
   end
 end
 
