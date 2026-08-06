@@ -5,6 +5,7 @@
 #==================================================================
 # ItemHandlers
 #==================================================================
+# TODO: Add a prompt before unfusing to confirm the action, to reverse the fusion order, or cancel all together
 ItemHandlers::UseOnPokemon.add(:DNASPLICERS, proc { |item, qty, pkmn, scene|
   # Safely resolve pkmn whether an index integer or a Pokemon object was passed
   pkmn1_index = -1

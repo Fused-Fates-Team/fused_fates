@@ -80,6 +80,27 @@ class FusedPokemon
       @__evaluating_fusion_evo = false
     end
   end
+
+  # alias_method species=
+  unless method_defined?(:vanilla_species)
+    alias_method :vanilla_species, :species=
+  end
+
+  def species=(value)
+    if value.to_s.include?('_') && respond_to?(:fused?) && fused?
+      parts = value.to_s.split('_', 2)
+
+      @fusion_head = parts[0].upcase.to_sym
+      @fusion_body = parts[1].upcase.to_sym
+      @_virtual_species_data = nil # Clear proxy cache so stats update
+
+      vanilla_species(@species)
+      return
+    end
+
+    # Pass-through for normal species changes
+    vanilla_species(value)
+  end
 end
 
 #================================================================
