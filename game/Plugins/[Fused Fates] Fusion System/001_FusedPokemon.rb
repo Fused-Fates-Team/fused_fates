@@ -25,22 +25,34 @@ class FusedPokemon < Pokemon
 
   # Delegate core attributes to the primary Pokémon
   def species=(species_id)
+    # Pass through for normal Pokémon
     return super(species_id) unless fused?
     
-    head_data = GameData::Species.try_get(@fusion_head)
-    body_data = GameData::Species.try_get(@fusion_body)
+    # Split the incoming fusion symbol into its components
+    parts = species_id.to_s.split('_')
+    
+    if parts.length >= 2
+      new_head = parts[0].upcase.to_sym
+      new_body = parts[1..-1].join('_').upcase.to_sym
 
-    head_evolved = (head_data && head_data.evolutions.any? { |evo| evo[0] == species_id })
-    body_evolved = (body_data && body_data.evolutions.any? { |evo| evo[0] == species_id })
+      # Update the hidden original head data if its species changed
+      if @original_head_data && @original_head_data.species != new_head
+        @original_head_data.species = new_head
+        @original_head_data.calc_stats if @original_head_data.respond_to?(:calc_stats)
+      end
 
-    if head_evolved
-      @fusion_head = species_id
-      @_virtual_species_data = nil # Clear cached proxy
-    elsif body_evolved
-      @fusion_body = species_id
-      @_virtual_species_data = nil # Clear cached proxy
+      # Update the hidden original body data if its species changed
+      if @original_body_data && @original_body_data.species != new_body
+        @original_body_data.species = new_body
+        @original_body_data.calc_stats if @original_body_data.respond_to?(:calc_stats)
+      end
+
+      # Synchronize the fusion trackers
+      @fusion_head = new_head
+      @fusion_body = new_body
     end
-
+    
+    # Assign the combined species to the outer Pokémon
     super(species_id)
   end
 
@@ -123,8 +135,8 @@ class FusedPokemon < Pokemon
       
     end
 
-    def proxy.gender
-      @body.gender
+    def proxy.gender=(value)
+      @gender = @body.gender
     end
 
     def proxy.category
@@ -136,7 +148,9 @@ class FusedPokemon < Pokemon
     end
 
     def proxy.evolutions
-      @head.evolutions && @body.evolutions
+      head_evos = @head.evolutions || []
+      body_evos = @body.evolutions || []
+      return (head_evos + body_evos).uniq
     end
 
     def proxy.method_missing(method, *args, &block)

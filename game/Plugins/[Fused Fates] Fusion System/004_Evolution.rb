@@ -20,60 +20,64 @@ class FusedPokemon
     current_body = respond_to?(:fusion_body) ? self.fusion_body : @fusion_body
 
     begin
-      # Fused Pokémon Logic
       if respond_to?(:fused?) && fused?
-        valid_fusion_evo = nil
         
-        # Check Head component evolution
-        if current_head && !valid_fusion_evo
+        # Check Head component evolution first
+        if current_head
           head_data = GameData::Species.try_get(current_head)
           if head_data && head_data.evolutions
             head_data.evolutions.each do |evo|
-              target_head, evo_method, evo_parameter = evo
+              new_head, evo_method, evo_parameter = evo[0], evo[1], evo[2]
+              new_fusion_sym = :"#{new_head}_#{current_body}"
+
+              next if new_head == head_data.get_previous_species
               
-              # Construct and validate the resulting fusion species symbol
-              new_fusion_sym = :"#{target_head}_#{current_body}"
-              next unless GameData::Species.exists?(new_fusion_sym)
-              
-              # Evaluate condition
-              if block_given?
-                ret = block.call(self, new_fusion_sym, evo_method, evo_parameter)
-                next unless ret
+              next unless GameData::Species.exists?(new_head) && GameData::Species.exists?(current_body)
+
+              if block && block.call(self, new_fusion_sym, evo_method, evo_parameter)
+                unless GameData::Species.exists?(new_fusion_sym)
+                  GameData::Species.register({
+                    :id         => new_fusion_sym,
+                    :name       => "Fusion",
+                    :base_stats => GameData::Species.get(new_head).base_stats,
+                    :types      => GameData::Species.get(new_head).types
+                  })
+                end
+                return new_fusion_sym
               end
-              
-              valid_fusion_evo = new_fusion_sym
-              break
             end
           end
         end
-        
+      
         # Check Body component evolution
-        if current_body && !valid_fusion_evo
+        if current_body
           body_data = GameData::Species.try_get(current_body)
           if body_data && body_data.evolutions
             body_data.evolutions.each do |evo|
-              target_body, evo_method, evo_parameter = evo
-              
-              # Construct and validate the resulting fusion species symbol
-              new_fusion_sym = :"#{current_head}_#{target_body}"
-              next unless GameData::Species.exists?(new_fusion_sym)
-              
-              # Evaluate condition
-              if block_given?
-                ret = block.call(self, new_fusion_sym, evo_method, evo_parameter)
-                next unless ret
+              new_body, evo_method, evo_parameter = evo[0], evo[1], evo[2]
+              new_fusion_sym = :"#{current_head}_#{new_body}"
+
+              next if new_body == body_data.get_previous_species
+                      
+              next unless GameData::Species.exists?(current_head) && GameData::Species.exists?(new_body)
+
+              if block && block.call(self, new_fusion_sym, evo_method, evo_parameter)
+                unless GameData::Species.exists?(new_fusion_sym)
+                  GameData::Species.register({
+                    :id         => new_fusion_sym,
+                    :name       => "Fusion",
+                    :base_stats => GameData::Species.get(current_head).base_stats,
+                    :types      => GameData::Species.get(current_head).types
+                  })
+                end
+                return new_fusion_sym
               end
-              
-              valid_fusion_evo = new_fusion_sym
-              break
             end
           end
         end
-        
-        return valid_fusion_evo if valid_fusion_evo
       end
 
-      # Vanilla Fallback - For base species or pre-defined Fused-to-Fused evolutions in PBS
+      # Vanilla Fallback
       return vanilla_check_evolution_internal(&block)
 
     ensure
@@ -94,7 +98,17 @@ class FusedPokemon
       @fusion_body = parts[1].upcase.to_sym
       @_virtual_species_data = nil # Clear proxy cache so stats update
 
-      vanilla_species(@species)
+      # If the symbol doesn't exist natively, register it dynamically 
+      unless GameData::Species.exists?(value)
+        GameData::Species.register({
+          :id           => value,
+          :name          => "Fusion",
+          :base_stats   => GameData::Species.get(@fusion_head).base_stats, 
+          :types        => GameData::Species.get(@fusion_head).types
+        })
+      end
+
+      vanilla_species(value)
       return
     end
 
