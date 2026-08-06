@@ -257,6 +257,35 @@ module FusionHandlers
     return selected_ability
   end
 
+  def self.reverse_party_pokemon(index)
+    pkmn = $player.party[index]
+    return false if !pkmn || !pkmn.respond_to?(:fused?) || !pkmn.fused?
+
+    # Swap the underlying original data clones
+    temp_data = pkmn.original_head_data
+    pkmn.original_head_data = pkmn.original_body_data
+    pkmn.original_body_data = temp_data
+
+    # Swap the active fusion symbol trackers
+    temp_head_sym = pkmn.fusion_head
+    pkmn.fusion_head = pkmn.fusion_body
+    pkmn.fusion_body = temp_head_sym
+
+    # Update the core species ID 
+    pkmn.species = :"#{pkmn.fusion_head}_#{pkmn.fusion_body}"
+
+    # Clear the cached virtual species proxy
+    # (This forces the game to rebuild the sprite, types, and base stats upon the next check)
+    if pkmn.instance_variable_defined?(:@_virtual_species_data)
+      pkmn.remove_instance_variable(:@_virtual_species_data)
+    end
+
+    # Recalculate stats after reversal
+    pkmn.calc_stats
+
+    return true
+  end
+
   def self.unfuse_party_pokemon(index)
     pkmn = $player.party[index]
 
@@ -287,6 +316,13 @@ module FusionHandlers
 
     # Balanced EXP Redistribution 
     if pkmn.respond_to?(:exp) && original_head.respond_to?(:exp=) && original_body.respond_to?(:exp=)
+      # Max Level Bypass
+      if pkmn.level >= Settings::MAXIMUM_LEVEL
+        # If the fusion hit the level cap, ensure both components receive enough EXP to also hit the cap
+        original_head.exp = original_head.growth_rate.minimum_exp_for_level(Settings::MAXIMUM_LEVEL)
+        original_body.exp = original_body.growth_rate.minimum_exp_for_level(Settings::MAXIMUM_LEVEL)
+      end
+
       # Determine baseline starting EXP of both components before fusion
       base_head_exp = original_head.exp || 0
       base_body_exp = original_body.exp || 0

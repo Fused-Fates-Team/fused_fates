@@ -32,11 +32,45 @@ ItemHandlers::UseOnPokemon.add(:DNASPLICERS, proc { |item, qty, pkmn, scene|
 
   # Check if already fused (Unfuse branch)
   if pkmn.respond_to?(:fused?) && pkmn.fused?
-    if FusionHandlers.respond_to?(:unfuse_party_pokemon) && FusionHandlers.unfuse_party_pokemon(pkmn1_index)
-      scene.pbHardRefresh
-      next true 
-    else
-      scene.pbDisplay(_INTL("This Pokémon cannot be unfused right now."))
+    # Initial command prompt
+    cmd = scene.pbShowCommands(
+      _INTL("This Pokémon is already fused. What would you like to do?"),
+      [_INTL("Unfuse"), _INTL("Reverse Fusion"), _INTL("Cancel")],
+      2 # Sets 'Cancel' as the default cursor position
+    )
+
+    if cmd == 0 # Unfuse
+      if scene.pbConfirmMessage(_INTL("Are you sure you want to separate them?"))
+        if FusionHandlers.respond_to?(:unfuse_party_pokemon) && FusionHandlers.unfuse_party_pokemon(pkmn1_index)
+          scene.pbHardRefresh
+          scene.pbDisplay(_INTL("The Pokémon were successfully separated!"))
+          next true 
+        else
+          scene.pbDisplay(_INTL("This Pokémon cannot be unfused right now."))
+          next false
+        end
+      else
+        scene.pbRefresh
+        next false
+      end
+
+    elsif cmd == 1 # Reverse Fusion
+      if scene.pbConfirmMessage(_INTL("Swap the Head and Body of this fusion?"))
+        if FusionHandlers.respond_to?(:reverse_party_pokemon) && FusionHandlers.reverse_party_pokemon(pkmn1_index)
+          scene.pbHardRefresh
+          scene.pbDisplay(_INTL("The fusion's components were successfully reversed!"))
+          next true
+        else
+          scene.pbDisplay(_INTL("This fusion cannot be reversed right now."))
+          next false
+        end
+      else
+        scene.pbRefresh
+        next false
+      end
+
+    else # Cancelled 
+      scene.pbRefresh
       next false
     end
   end
