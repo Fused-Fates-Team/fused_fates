@@ -67,105 +67,8 @@ class FusedPokemon < Pokemon
     head_data = GameData::Species.try_get(@fusion_head)
     body_data = GameData::Species.try_get(@fusion_body)
     return super unless head_data && body_data
-
-    proxy = Object.new
-    proxy.instance_variable_set(:@head, head_data)
-    proxy.instance_variable_set(:@body, body_data)
-
-    def proxy.id; :VIRTUAL_FUSION; end
-    def proxy.name
-      head_name = @head ? @head.name : "Unknown"
-      body_name = @body ? @body.name : "Unknown"
     
-      # Combination name logic (first half of head + last half of body)
-      return "#{head_name[0..(head_name.length / 2)]}#{body_name[(body_name.length / 2)..-1]}"
-    end
-
-    def play_cry(volume = 90, pitch = nil)
-      GameData::Species.play_cry_from_pokemon(@original_head_data, volume*2/3, pitch) if @original_head_data
-      GameData::Species.play_cry_from_pokemon(@original_body_data, volume/3, pitch) if @original_body_data
-    end
-
-    # Type blending: Head gives type 1, Body gives type 2 (fallback to head type 1 if single)
-    def proxy.types
-      t1 = @head.types[0]
-      t2 = @body.types[1] || @body.types[0]
-      t1 == t2 ? [t1] : [t1, t2]
-    end
-
-    def proxy.has_type?(type)
-      types.include(type)
-    end
-
-    # Stat blending (even average)
-    def proxy.baseStats  
-      ret = {}
-      [:HP, :ATTACK, :DEFENSE, :SPECIAL_ATTACK, :SPECIAL_DEFENSE, :SPEED].each do |stat|
-        head_stat = (@head.respond_to?(:base_stats) && @head.base_stats[stat]) || 
-                    (@head.respond_to?(:baseStats) && @head.baseStats[stat]) || 0
-        body_stat = (@body.respond_to?(:base_stats) && @body.base_stats[stat]) || 
-                    (@body.respond_to?(:baseStats) && @body.baseStats[stat]) || 0
-        ret[stat] = ((head_stat + body_stat) / 2).round
-      end
-      return ret
-    end
-
-    def proxy.base_exp
-      h = (@head.base_exp * 20) / @head.base_stats.values.sum
-      b = (@body.base_exp * 20) / @body.base_stats.values.sum
-      return ((self.baseStats.values.sum * (h+b))/40).round.to_i
-    end
-
-    def proxy.exp=(value)
-      v = @exp*1
-
-      @original_head_data.exp += v if @original_head_data
-      @original_body_data.exp += v if @original_body_data
-    end
-
-    def proxy.height
-      (@head.height + @body.height) / 2
-    end
-
-    def proxy.weight
-      (@head.weight + @body.weight) / 2
-    end
-
-    def proxy.egg_groups
-      
-    end
-
-    def proxy.gender=(value)
-      @gender = @body.gender
-    end
-
-    def proxy.category
-      "#{@head.category} / #{@body.category}"
-    end
-
-    def proxy.pokedex_entry
-      "A fused Pokémon combining the traits of #{@head.name} and #{@body.name}."
-    end
-
-    def proxy.evolutions
-      head_evos = @head.evolutions || []
-      body_evos = @body.evolutions || []
-      return (head_evos + body_evos).uniq
-    end
-
-    def proxy.method_missing(method, *args, &block)
-      if @head.respond_to?(method)
-        @head.send(method, *args, &block)
-      else
-        super
-      end
-    end
-
-    def proxy.respond_to_missing?(method, include_private = false)
-      @head.respond_to?(method, include_private) || super
-    end
-
-    return proxy
+    return VirtualSpeciesProxy.new(head_data, body_data, @original_head_data, @original_body_data)
   end
 
   def compatible_with_move?(move_id)
@@ -205,5 +108,63 @@ class FusedPokemon < Pokemon
     moves_list.sort_by! { |move| move[0] }
     
     return moves_list
+  end
+end
+
+#==================================================================
+# class VirtualSpeciesProxy
+#==================================================================
+class VirtualSpeciesProxy
+  def initialize(head, body, original_head, original_body)
+    @head = head
+    @body = body
+    @original_head_data = original_head
+    @original_body_data = original_body
+  end
+
+  def id; :VIRTUAL_FUSION; end
+
+  def name
+    head_name = @head ? @head.name : "Unknown"
+    body_name = @body ? @body.name : "Unknown"
+    return "#{head_name[0..(head_name.length / 2)]}#{body_name[(body_name.length / 2)..-1]}"
+  end
+
+  def play_cry(volume = 90, pitch = nil)
+    GameData::Species.play_cry_from_pokemon(@original_head_data, volume*2/3, pitch) if @original_head_data
+    GameData::Species.play_cry_from_pokemon(@original_body_data, volume/3, pitch) if @original_body_data
+  end
+
+  def types
+    t1 = @head.types[0]
+    t2 = @body.types[1] || @body.types[0]
+    t1 == t2 ? [t1] : [t1, t2]
+  end
+
+  def has_type?(type)
+    types.include?(type)
+  end
+
+  def baseStats
+    ret = {}
+    [:HP, :ATTACK, :DEFENSE, :SPECIAL_ATTACK, :SPECIAL_DEFENSE, :SPEED].each do |stat|
+      head_stat = (@head.respond_to?(:base_stats) && @head.base_stats[stat]) || (@head.respond_to?(:baseStats) && @head.baseStats[stat]) || 0
+      body_stat = (@body.respond_to?(:base_stats) && @body.base_stats[stat]) || (@body.respond_to?(:baseStats) && @body.baseStats[stat]) || 0
+      ret[stat] = (head_stat + body_stat) / 2
+    end
+    return ret
+  end
+
+  # Handle any missing methods by forwarding them to the Head's species data
+  def method_missing(method, *args, &block)
+    if @head.respond_to?(method)
+      @head.send(method, *args, &block)
+    else
+      super
+    end
+  end
+
+  def respond_to_missing?(method, include_private = false)
+    @head.respond_to?(method, include_private) || super
   end
 end
