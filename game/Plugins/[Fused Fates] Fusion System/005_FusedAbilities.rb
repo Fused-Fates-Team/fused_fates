@@ -7,9 +7,45 @@
 #==================================================================
 module FusedAbilities
   @combo_registry = {}
+  @equivalent_abilities = {}
+
+  # Abilities which are too volatile to fuse at all
+  @blacklisted_singles = [:WONDERGUARD, :SHADOWTAG, :ARENATRAP]
+
+  # Specific pairs that create broken syngergies
+  @blacklisted_pairs = [
+    [:HUGEPOWER, :PUREPOWER],
+    [:PROTEAN, :LIBERO],
+    [:MAGICGUARD, :UNAWARE]
+  ]
 
   def self.combo_registry
     @combo_registry
+  end
+
+  # Register custom pairs of different abilities that share the exact same effects
+  def self.register_equivalent_ability(id1, id2)
+    @equivalent_abilities[id1] ||= []
+    @equivalent_abilities[id1] << id2 unless @equivalent_abilities[id1].include?(id2)
+    @equivalent_abilities[id2] ||= []
+    @equivalent_abilities[id2] << id1 unless @equivalent_abilities[id2].include?(id1)
+  end
+
+  # Checks if two abilities have the exact same effects
+  def self.same_effects?(head_id, body_id)
+    return true if head_id == body_id
+    return true if @equivalent_abilities[head_id]&.include?(body_id)
+    return false
+  end
+
+  # Checks if an ability is blacklisted for fusion
+  def self.blacklisted_single?(ability_id)
+    @blacklisted_singles.include?(ability_id)
+  end
+
+  # Checks if a specific pair of abilities is blacklisted for fusion
+  def self.blacklisted_pair?(head_id, body_id)
+    @blacklisted_pairs.any? { |pair| pair.include?(head_id) && pair.include?(body_id) }
   end
 
   def self.register_combo(head_id, body_id)
@@ -39,7 +75,7 @@ module FusedAbilities
     return @combo_registry[combo_id]
   end
 
-  # Automatically registers the fusion combo 
+  # Automatically register the fusion combo 
   def self.bind_combo_to_effects(combo_id, head_id, body_id)
     return if !defined?(Battle::AbilityEffects)
 
@@ -68,6 +104,10 @@ module FusedAbilities
             else
               mod1 = val1.to_f / base_val
               mod2 = val2.to_f / base_val
+
+              # If both components try to boost damage, scale down the secondary boost slightly
+              mod2 = 1.0 + ((mod2 - 1.0) * 0.5) if mod2 > 1.0 && mod1 > 1.0
+
               result = base_val * mod1 * mod2
             end
             
@@ -108,6 +148,16 @@ class FusedPokemon
     
     # Fallback if a component lacks an ability
     return super if !head_abil || !body_abil
+
+    # Duplicate Clause
+    return head_abil if FusedAbilities.same_effects?(head_abil.id, body_abil.id)
+
+    # Blacklist Clause
+    if FusedAbilities.blacklisted_single?(head_abil.id) || 
+      FusedAbilities.blacklisted_single?(body_abil.id) || 
+      FusedAbilities.blacklisted_pair?(head_abil.id, body_abil.id)
+      return head_abil
+    end
     
     # Register and return the combined ability proxy
     combo_id = FusedAbilities.register_combo(head_abil.id, body_abil.id)

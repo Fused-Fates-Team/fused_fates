@@ -112,12 +112,6 @@ module FusionHandlers
       fused_pkmn.nature = chosen_nature
     end
 
-    # Ability inheritance and selection
-    if fused_pkmn.respond_to?(:ability=)
-      chosen_ability = FusionHandlers.select_fusion_abilities(pkmn1, pkmn2, fused_pkmn.name)
-      fused_pkmn.ability = chosen_ability if chosen_ability
-    end
-
     # Move inheritance
     if pkmn1.respond_to?(:moves) && pkmn2.respond_to?(:moves) && fused_pkmn.respond_to?(:moves)
       available_moves = []
@@ -224,37 +218,6 @@ module FusionHandlers
     end
 
     return selected_moves
-  end
-
-  # Method for determining the fusion's ability
-  def self.select_fusion_abilities(pkmn1, pkmn2, pokemon_name)
-    ability_options = []
-
-    # Collect unique abilities from both component Pokémon
-    [pkmn1, pkmn2].each do |pkmn|
-      next unless pkmn.respond_to?(:ability_id) && pkmn.ability_id
-      ability_options.push(pkmn.ability_id) unless ability_options.include?(pkmn.ability_id)
-    end
-
-    # Fallback if the abilities aren't present
-    if ability_options.empty?
-      return nil
-    end
-
-    # If there are multiple unique abilities, prompt the player to choose
-    if ability_options.length > 1
-      pbMessage(_INTL("Please choose {1}'s Ability.", pokemon_name))
-      
-      ability_names = ability_options.map { |a_id| GameData::Ability.get(a_id).name }
-      choice = pbShowCommands(nil, ability_names, -1)
-      
-      # Default to the first option if cancelled
-      selected_ability = (choice >= 0) ? ability_options[choice] : ability_options[0]
-    else
-      selected_ability = ability_options[0]
-    end
-
-    return selected_ability
   end
 
   def self.reverse_party_pokemon(index)
