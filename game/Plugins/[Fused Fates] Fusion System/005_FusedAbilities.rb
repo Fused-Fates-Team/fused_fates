@@ -16,7 +16,18 @@ module FusedAbilities
   @blacklisted_pairs = [
     [:HUGEPOWER, :PUREPOWER],
     [:PROTEAN, :LIBERO],
-    [:MAGICGUARD, :UNAWARE]
+    [:MAGICGUARD, :UNAWARE],
+    [:MAGICGUARD, :REGENERATOR]
+  ]
+
+  # Registry of all abilities with overworld effects
+  OVERWORLD_ABILITIES = [
+    :ARENATRAP, :COMPOUNDEYES, :CUTECHARM, :FLASHFIRE, :HARVEST, :HUSTLE,
+    :ILLUMINATE, :INTIMIDATE, :KEENEYE, :LIGHTNINGROD, :MAGNETPULL, :NOGUARD, 
+    :PRESSURE, :QUICKFEET, :SANDVEIL, :SNOWCLOAK, :STATIC, :STENCH, 
+    :STICKYHOLD, :SUCTIONCUPS, :SUPERLUCK, :SWARM, :SYNCHRONIZE, 
+    :VITALSPIRIT, :WHITESMOKE, :FLAMEBODY, :MAGMAARMOR, :STEAMENGINE, 
+    :HONEYGATHER, :PICKUP
   ]
 
   def self.combo_registry
@@ -46,6 +57,15 @@ module FusedAbilities
   # Checks if a specific pair of abilities is blacklisted for fusion
   def self.blacklisted_pair?(head_id, body_id)
     @blacklisted_pairs.any? { |pair| pair.include?(head_id) && pair.include?(body_id) }
+  end
+
+  # Checks if an ability affects the overworld
+  def self.is_overworld_ability?(ability_id)
+    return false if ability_id.nil?
+    if ability_id.is_a?(Array)
+      return ability_id.any? { |ab| OVERWORLD_ABILITIES.include?(ab) }
+    end
+    return OVERWORLD_ABILITIES.include?(ability_id)
   end
 
   def self.register_combo(head_id, body_id)
@@ -171,6 +191,85 @@ class FusedPokemon
 end
 
 #==================================================================
+# class Pokemon
+#==================================================================
+class Pokemon
+  alias vanilla_hasAbility? hasAbility? unless method_defined?(:vanilla_hasAbility?)
+
+  def hasAbility?(value = nil)
+    current_ability = self.ability_id
+    return false if current_ability.nil?
+    return true if value.nil?
+
+    # Check Fused Components
+    components = FusedAbilities.get_components(current_ability)
+    
+    if components
+      # If the game is checking for a map/field effect, enforce the "One Effect" rule
+      if FusedAbilities.is_overworld_ability?(value)
+        head_has_ow = FusedAbilities.is_overworld_ability?(components[0])
+        body_has_ow = FusedAbilities.is_overworld_ability?(components[1])
+        
+        # Head Component > Body Component > None
+        active_ow_comp = head_has_ow ? components[0] : (body_has_ow ? components[1] : nil)
+        
+        if value.is_a?(Array)
+          return value.include?(active_ow_comp)
+        else
+          return active_ow_comp == value
+        end
+      end
+      
+      # For all non-overworld checks allow both components
+      if value.is_a?(Array)
+        return true if value.any? { |ab| components.include?(ab) }
+      else
+        return true if components.include?(value)
+      end
+    end
+
+    # Standard non-fused fallback check
+    return vanilla_hasAbility?(value)
+  end
+end
+
+#==================================================================
+# module GameData class Ability
+#==================================================================
+module GameData
+  class Ability
+    # Alias the original name method to preserve standard functionality
+    alias vanilla_name name unless method_defined?(:vanilla_name)
+    
+    def name
+      # Intercept dynamically created fusion abilities
+      return "As One" if @id.to_s.start_with?("ASONE_")
+      
+      # Return normal message file names for everything else
+      return vanilla_name
+    end
+
+    # Alias the original description method
+    alias vanilla_description description unless method_defined?(:vanilla_description)
+    
+    def description
+      if @id.to_s.start_with?("ASONE_")
+        components = FusedAbilities.get_components(@id)
+        if components
+          # Safely fetch the names of both component abilities
+          head_name = GameData::Ability.try_get(components[0])&.name || "Unknown"
+          body_name = GameData::Ability.try_get(components[1])&.name || "Unknown"
+          return "Combines the effects of #{head_name} and #{body_name}."
+        end
+      end
+      
+      # Return normal message file descriptions for everything else
+      return vanilla_description
+    end
+  end
+end
+
+#==================================================================
 # class Battle::Battler
 #==================================================================
 class Battle::Battler
@@ -216,7 +315,6 @@ class Battle::Battler
     return true
   end
 end
-
 
 #==================================================================
 # module Battle::AbilityEffects
