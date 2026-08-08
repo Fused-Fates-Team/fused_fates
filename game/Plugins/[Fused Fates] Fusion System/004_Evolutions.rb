@@ -137,3 +137,92 @@ GameData::Evolution.register({
     next match && !has_everstone
   }
 })
+
+#==================================================================
+# class PokemonEvolutionScene
+#==================================================================
+class PokemonEvolutionScene
+  def pbEvolutionSuccess
+    $stats.evolution_count += 1
+    
+    is_fusion = @newspecies.to_s.include?('_')
+    
+    if is_fusion
+      # Extract Head and Body components
+      head_sym, body_sym = @newspecies.to_s.split('_').map(&:to_sym)
+      
+      # Layered Cries
+      cry_time = GameData::Species.cry_length(head_sym, @pokemon.form)
+      Pokemon.play_cry(head_sym, @pokemon.form, 100, 100)
+      Pokemon.play_cry(body_sym, @pokemon.form, 70, 100) 
+      
+      # Portmanteau Name Generation
+      head_name = GameData::Species.get(head_sym).name
+      body_name = GameData::Species.get(body_sym).name
+      
+      newspeciesname = "#{head_name[0..(head_name.length / 2)]}#{body_name[(body_name.length / 2)..-1]}"
+    else
+      # Vanilla Fallback for standard Pokémon
+      cry_time = GameData::Species.cry_length(@newspecies, @pokemon.form)
+      Pokemon.play_cry(@newspecies, @pokemon.form)
+      newspeciesname = GameData::Species.get(@newspecies).name
+    end
+
+    timer_start = System.uptime
+    loop do
+      Graphics.update
+      pbUpdate
+      break if System.uptime - timer_start >= (cry_time || 0.5)
+    end
+    pbBGMStop
+    
+    # Success jingle & message
+    pbMEPlay("Evolution success")
+    pbMessageDisplay(@sprites["msgwindow"],
+                     "\\se[]" + _INTL("Congratulations! Your {1} evolved into {2}!",
+                                      @pokemon.name, newspeciesname) + "\\wt[80]") { pbUpdate }
+    @sprites["msgwindow"].text = ""
+    
+    # Check for consumed item and check if Pokémon should be duplicated
+    pbEvolutionMethodAfterEvolution
+    
+    # Modify Pokémon to make it evolved
+    was_fainted = @pokemon.fainted?
+    @pokemon.species = @newspecies
+    @pokemon.hp = 0 if was_fainted
+    @pokemon.calc_stats
+    @pokemon.ready_to_evolve = false
+    
+    # See and own evolved species
+    was_owned = $player.owned?(@newspecies)
+    $player.pokedex.register(@pokemon)
+    $player.pokedex.set_owned(@newspecies)
+    
+    moves_to_learn = []
+    movelist = @pokemon.getMoveList
+    movelist.each do |i|
+      next if i[0] != 0 && i[0] != @pokemon.level   # 0 is "learn upon evolution"
+      moves_to_learn.push(i[1])
+    end
+    
+    # Show Pokédex entry for new species if it hasn't been owned before
+    if Settings::SHOW_NEW_SPECIES_POKEDEX_ENTRY_MORE_OFTEN && !was_owned &&
+       $player.has_pokedex && $player.pokedex.species_in_unlocked_dex?(@pokemon.species)
+      pbMessageDisplay(@sprites["msgwindow"],
+                       _INTL("{1}'s data was added to the Pokédex.", newspeciesname)) { pbUpdate }
+      $player.pokedex.register_last_seen(@pokemon)
+      pbFadeOutIn do
+        scene = PokemonPokedexInfo_Scene.new
+        screen = PokemonPokedexInfoScreen.new(scene)
+        screen.pbDexEntry(@pokemon.species)
+        @sprites["msgwindow"].text = "" if moves_to_learn.length > 0
+        pbEndScreen(false) if moves_to_learn.length == 0
+      end
+    end
+    
+    # Learn moves upon evolution for evolved species
+    moves_to_learn.each do |move|
+      pbLearnMove(@pokemon, move, true) { pbUpdate }
+    end
+  end
+end
