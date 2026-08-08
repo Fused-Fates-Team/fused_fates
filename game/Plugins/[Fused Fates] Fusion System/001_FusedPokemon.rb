@@ -184,19 +184,3 @@ class VirtualSpeciesProxy
     @head.respond_to?(method, include_private) || super
   end
 end
-
-module GameData
-  class Species
-    class << self
-      alias play_cry_from_pokemon_fused_fates play_cry_from_pokemon unless method_defined?(:play_cry_from_pokemon_fused_fates)
-
-      def play_cry_from_pokemon(pkmn, volume = 90, pitch = 100)
-        if pkmn.is_a?(FusedPokemon)
-          pkmn.play_cry(volume, pitch)
-        else
-          play_cry_from_pokemon_fused_fates(pkmn, volume, pitch)
-        end
-      end
-    end
-  end
-end

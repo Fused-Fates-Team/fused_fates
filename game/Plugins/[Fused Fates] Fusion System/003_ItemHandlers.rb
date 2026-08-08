@@ -112,3 +112,224 @@ ItemHandlers::UseOnPokemon.add(:DNASPLICERS, proc { |item, qty, pkmn, scene|
     next false
   end
 })
+
+ItemHandlers::UseOnPokemon.add(:ABILITYCAPSULE, proc { |item, qty, pkmn, scene|
+  if pkmn.respond_to?(:fused?) && pkmn.fused?
+    scene.pbDisplay(_INTL("It can't be used on a fused Pokémon."))
+    next false
+  end
+
+  if scene.pbConfirm(_INTL("Do you want to change {1}'s Ability?", pkmn.name))
+    abils = pkmn.getAbilityList
+    abil1 = nil
+    abil2 = nil
+    abils.each do |i|
+      abil1 = i[0] if i[1] == 0
+      abil2 = i[0] if i[1] == 1
+    end
+    if abil1.nil? || abil2.nil? || pkmn.hasHiddenAbility? || pkmn.isSpecies?(:ZYGARDE)
+      scene.pbDisplay(_INTL("It won't have any effect."))
+      next false
+    end
+    newabil = (pkmn.ability_index + 1) % 2
+    newabilname = GameData::Ability.get((newabil == 0) ? abil1 : abil2).name
+    pkmn.ability_index = newabil
+    pkmn.ability = nil
+    scene.pbRefresh
+    scene.pbDisplay(_INTL("{1}'s Ability changed! Its Ability is now {2}!", pkmn.name, newabilname))
+    next true
+  end
+  next false
+})
+
+ItemHandlers::UseOnPokemon.add(:ABILITYPATCH, proc { |item, qty, pkmn, scene|
+  if pkmn.respond_to?(:fused?) && pkmn.fused?
+    scene.pbDisplay(_INTL("It can't be used on a fused Pokémon."))
+    next false
+  end
+
+  if scene.pbConfirm(_INTL("Do you want to change {1}'s Ability?", pkmn.name))
+    abils = pkmn.getAbilityList
+    new_ability_id = nil
+    abils.each { |a| new_ability_id = a[0] if a[1] == 2 }
+    if !new_ability_id || pkmn.hasHiddenAbility? || pkmn.isSpecies?(:ZYGARDE)
+      scene.pbDisplay(_INTL("It won't have any effect."))
+      next false
+    end
+    new_ability_name = GameData::Ability.get(new_ability_id).name
+    pkmn.ability_index = 2
+    pkmn.ability = nil
+    scene.pbRefresh
+    scene.pbDisplay(_INTL("{1}'s Ability changed! Its Ability is now {2}!", pkmn.name, new_ability_name))
+    next true
+  end
+  next false
+})
+
+ItemHandlers::UseOnPokemon.add(:LONELYMINT, proc { |item, qty, pkmn, scene|
+  if pkmn.respond_to?(:fused?) && pkmn.fused?
+    scene.pbDisplay(_INTL("It can't be used on a fused Pokémon."))
+    next false
+  end
+  pbNatureChangingMint(:LONELY, item, pkmn, scene)
+})
+
+ItemHandlers::UseOnPokemon.add(:ADAMANTMINT, proc { |item, qty, pkmn, scene|
+  if pkmn.respond_to?(:fused?) && pkmn.fused?
+    scene.pbDisplay(_INTL("It can't be used on a fused Pokémon."))
+    next false
+  end
+  pbNatureChangingMint(:ADAMANT, item, pkmn, scene)
+})
+
+ItemHandlers::UseOnPokemon.add(:NAUGHTYMINT, proc { |item, qty, pkmn, scene|
+  if pkmn.respond_to?(:fused?) && pkmn.fused?
+    scene.pbDisplay(_INTL("It can't be used on a fused Pokémon."))
+    next false
+  end
+  pbNatureChangingMint(:NAUGHTY, item, pkmn, scene)
+})
+
+ItemHandlers::UseOnPokemon.add(:BRAVEMINT, proc { |item, qty, pkmn, scene|
+  if pkmn.respond_to?(:fused?) && pkmn.fused?
+    scene.pbDisplay(_INTL("It can't be used on a fused Pokémon."))
+    next false
+  end
+  pbNatureChangingMint(:BRAVE, item, pkmn, scene)
+})
+
+ItemHandlers::UseOnPokemon.add(:BOLDMINT, proc { |item, qty, pkmn, scene|
+  if pkmn.respond_to?(:fused?) && pkmn.fused?
+    scene.pbDisplay(_INTL("It can't be used on a fused Pokémon."))
+    next false
+  end
+  pbNatureChangingMint(:BOLD, item, pkmn, scene)
+})
+
+ItemHandlers::UseOnPokemon.add(:IMPISHMINT, proc { |item, qty, pkmn, scene|
+  if pkmn.respond_to?(:fused?) && pkmn.fused?
+    scene.pbDisplay(_INTL("It can't be used on a fused Pokémon."))
+    next false
+  end
+  pbNatureChangingMint(:IMPISH, item, pkmn, scene)
+})
+
+ItemHandlers::UseOnPokemon.add(:LAXMINT, proc { |item, qty, pkmn, scene|
+  if pkmn.respond_to?(:fused?) && pkmn.fused?
+    scene.pbDisplay(_INTL("It can't be used on a fused Pokémon."))
+    next false
+  end
+  pbNatureChangingMint(:LAX, item, pkmn, scene)
+})
+
+ItemHandlers::UseOnPokemon.add(:RELAXEDMINT, proc { |item, qty, pkmn, scene|
+  if pkmn.respond_to?(:fused?) && pkmn.fused?
+    scene.pbDisplay(_INTL("It can't be used on a fused Pokémon."))
+    next false
+  end
+  pbNatureChangingMint(:RELAXED, item, pkmn, scene)
+})
+
+ItemHandlers::UseOnPokemon.add(:MODESTMINT, proc { |item, qty, pkmn, scene|
+  if pkmn.respond_to?(:fused?) && pkmn.fused?
+    scene.pbDisplay(_INTL("It can't be used on a fused Pokémon."))
+    next false
+  end
+  pbNatureChangingMint(:MODEST, item, pkmn, scene)
+})
+
+ItemHandlers::UseOnPokemon.add(:MILDMINT, proc { |item, qty, pkmn, scene|
+  if pkmn.respond_to?(:fused?) && pkmn.fused?
+    scene.pbDisplay(_INTL("It can't be used on a fused Pokémon."))
+    next false
+  end
+  pbNatureChangingMint(:MILD, item, pkmn, scene)
+})
+
+ItemHandlers::UseOnPokemon.add(:RASHMINT, proc { |item, qty, pkmn, scene|
+  if pkmn.respond_to?(:fused?) && pkmn.fused?
+    scene.pbDisplay(_INTL("It can't be used on a fused Pokémon."))
+    next false
+  end
+  pbNatureChangingMint(:RASH, item, pkmn, scene)
+})
+
+ItemHandlers::UseOnPokemon.add(:QUIETMINT, proc { |item, qty, pkmn, scene|
+  if pkmn.respond_to?(:fused?) && pkmn.fused?
+    scene.pbDisplay(_INTL("It can't be used on a fused Pokémon."))
+    next false
+  end
+  pbNatureChangingMint(:QUIET, item, pkmn, scene)
+})
+
+ItemHandlers::UseOnPokemon.add(:CALMMINT, proc { |item, qty, pkmn, scene|
+  if pkmn.respond_to?(:fused?) && pkmn.fused?
+    scene.pbDisplay(_INTL("It can't be used on a fused Pokémon."))
+    next false
+  end
+  pbNatureChangingMint(:CALM, item, pkmn, scene)
+})
+
+ItemHandlers::UseOnPokemon.add(:GENTLEMINT, proc { |item, qty, pkmn, scene|
+  if pkmn.respond_to?(:fused?) && pkmn.fused?
+    scene.pbDisplay(_INTL("It can't be used on a fused Pokémon."))
+    next false
+  end
+  pbNatureChangingMint(:GENTLE, item, pkmn, scene)
+})
+
+ItemHandlers::UseOnPokemon.add(:CAREFULMINT, proc { |item, qty, pkmn, scene|
+  if pkmn.respond_to?(:fused?) && pkmn.fused?
+    scene.pbDisplay(_INTL("It can't be used on a fused Pokémon."))
+    next false
+  end
+  pbNatureChangingMint(:CAREFUL, item, pkmn, scene)
+})
+
+ItemHandlers::UseOnPokemon.add(:SASSYMINT, proc { |item, qty, pkmn, scene|
+  if pkmn.respond_to?(:fused?) && pkmn.fused?
+    scene.pbDisplay(_INTL("It can't be used on a fused Pokémon."))
+    next false
+  end
+  pbNatureChangingMint(:SASSY, item, pkmn, scene)
+})
+
+ItemHandlers::UseOnPokemon.add(:TIMIDMINT, proc { |item, qty, pkmn, scene|
+  if pkmn.respond_to?(:fused?) && pkmn.fused?
+    scene.pbDisplay(_INTL("It can't be used on a fused Pokémon."))
+    next false
+  end
+  pbNatureChangingMint(:TIMID, item, pkmn, scene)
+})
+
+ItemHandlers::UseOnPokemon.add(:HASTYMINT, proc { |item, qty, pkmn, scene|
+  if pkmn.respond_to?(:fused?) && pkmn.fused?
+    scene.pbDisplay(_INTL("It can't be used on a fused Pokémon."))
+    next false
+  end
+  pbNatureChangingMint(:HASTY, item, pkmn, scene)
+})
+
+ItemHandlers::UseOnPokemon.add(:JOLLYMINT, proc { |item, qty, pkmn, scene|
+  if pkmn.respond_to?(:fused?) && pkmn.fused?
+    scene.pbDisplay(_INTL("It can't be used on a fused Pokémon."))
+    next false
+  end
+  pbNatureChangingMint(:JOLLY, item, pkmn, scene)
+})
+
+ItemHandlers::UseOnPokemon.add(:NAIVEMINT, proc { |item, qty, pkmn, scene|
+  if pkmn.respond_to?(:fused?) && pkmn.fused?
+    scene.pbDisplay(_INTL("It can't be used on a fused Pokémon."))
+    next false
+  end
+  pbNatureChangingMint(:NAIVE, item, pkmn, scene)
+})
+
+ItemHandlers::UseOnPokemon.add(:SERIOUSMINT, proc { |item, qty, pkmn, scene|
+  if pkmn.respond_to?(:fused?) && pkmn.fused?
+    scene.pbDisplay(_INTL("It can't be used on a fused Pokémon."))
+    next false
+  end
+  pbNatureChangingMint(:SERIOUS, item, pkmn, scene)
+})
