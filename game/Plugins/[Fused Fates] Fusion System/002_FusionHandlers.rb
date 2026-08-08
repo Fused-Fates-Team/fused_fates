@@ -87,8 +87,14 @@ module FusionHandlers
       value2 = pkmn2.iv[stat] || 0
       fused_pkmn.iv[stat] = ((value1 + value2) / 2.0).ceil
     end
+
     # Transfer and combine happiness
     fused_pkmn.happiness = [pkmn1.happiness, pkmn2.happiness].sum / 2
+
+    # Transfer and combine Ribbons
+    if pkmn1.respond_to?(:ribbons) && pkmn2.respond_to?(:ribbons) && fused_pkmn.respond_to?(:ribbons=)
+      fused_pkmn.ribbons = (pkmn1.ribbons + pkmn2.ribbons).uniq
+    end
 
     # Handle Held Items (Transfer unequipped items to bag)
     [pkmn1, pkmn2].each do |source_pkmn|
@@ -311,6 +317,14 @@ module FusionHandlers
       # Refresh levels and stats based on corrected experience pools
       original_head.calc_stats if original_head.respond_to?(:calc_stats)
       original_body.calc_stats if original_body.respond_to?(:calc_stats)
+    end
+
+    # Ribbon Redistribution
+    if pkmn.respond_to?(:ribbons) && original_head.respond_to?(:ribbons=) && original_body.respond_to?(:ribbons=)
+      # Give any ribbons earned during fusion to both components, 
+      # keeping the ones they already had prior to fusing
+      original_head.ribbons = (original_head.ribbons + pkmn.ribbons).uniq
+      original_body.ribbons = (original_body.ribbons + pkmn.ribbons).uniq
     end
 
     head_name = original_head.name
