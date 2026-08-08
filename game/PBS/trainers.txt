@@ -3,7 +3,9 @@
 [CAMPER,Liam]
 LoseText = A very good battle, indeed!
 Pokemon = DIGLETT,10
+    FusionBody = GEODUDE
 Pokemon = BONSLY,11
+    FusionBody = GEODUDE
 #-------------------------------
 [LEADER_Brock,Brock]
 Items = FULLRESTORE,FULLRESTORE

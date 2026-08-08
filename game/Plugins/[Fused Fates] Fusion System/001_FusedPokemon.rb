@@ -14,8 +14,21 @@ class FusedPokemon < Pokemon
     @fusion_head = head
     @fusion_body = body
     
-    # If it's a fusion, initialize the base Pokemon object using the head species
-    super(head || species, level)
+    # Initialize the base Pokemon object
+    super(species, level)
+  end
+
+  def play_cry(volume = 90, pitch = 100)
+    if fused? && @fusion_head && @fusion_body
+      # Extract form data if it exists, otherwise default to 0
+      head_form = @original_head_data ? @original_head_data.form : 0
+      body_form = @original_body_data ? @original_body_data.form : 0
+      
+      GameData::Species.play_cry_from_species(@fusion_head, head_form, volume * 2 / 3, pitch)
+      GameData::Species.play_cry_from_species(@fusion_body, body_form, volume / 3, pitch)
+    else
+      super(volume, pitch)
+    end
   end
 
   # Check if the Pokémon is fused
@@ -130,9 +143,12 @@ class VirtualSpeciesProxy
     return "#{head_name[0..(head_name.length / 2)]}#{body_name[(body_name.length / 2)..-1]}"
   end
 
-  def play_cry(volume = 90, pitch = nil)
-    GameData::Species.play_cry_from_pokemon(@original_head_data, volume*2/3, pitch) if @original_head_data
-    GameData::Species.play_cry_from_pokemon(@original_body_data, volume/3, pitch) if @original_body_data
+  def play_cry(volume = 90, pitch = 100)
+    head_form = @original_head_data ? @original_head_data.form : 0
+    body_form = @original_body_data ? @original_body_data.form : 0
+    
+    GameData::Species.play_cry_from_species(@head.id, head_form, volume * 2 / 3, pitch)
+    GameData::Species.play_cry_from_species(@body.id, body_form, volume / 3, pitch)
   end
 
   def types
@@ -166,5 +182,21 @@ class VirtualSpeciesProxy
 
   def respond_to_missing?(method, include_private = false)
     @head.respond_to?(method, include_private) || super
+  end
+end
+
+module GameData
+  class Species
+    class << self
+      alias play_cry_from_pokemon_fused_fates play_cry_from_pokemon unless method_defined?(:play_cry_from_pokemon_fused_fates)
+
+      def play_cry_from_pokemon(pkmn, volume = 90, pitch = 100)
+        if pkmn.is_a?(FusedPokemon)
+          pkmn.play_cry(volume, pitch)
+        else
+          play_cry_from_pokemon_fused_fates(pkmn, volume, pitch)
+        end
+      end
+    end
   end
 end

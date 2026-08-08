@@ -163,25 +163,57 @@ class FusedPokemon
     return super unless fused?
     return super if !@original_head_data || !@original_body_data
     
-    head_abil = @original_head_data.ability
-    body_abil = @original_body_data.ability
+    # Determine the ability index safely
+    idx = self.ability_index || 0
+
+    if @original_head_data.respond_to?(:ability_id)
+      # Triggered by actual Pokemon objects (Player's fusions)
+      head_sym = @original_head_data.ability_id
+    else
+      # Triggered by GameData::Species objects (Trainer / Wild battles)
+      if idx >= 2 && !@original_head_data.hidden_abilities.empty?
+        ha_idx = idx - 2
+        head_sym = @original_head_data.hidden_abilities[ha_idx] || @original_head_data.hidden_abilities[0]
+      else
+        head_sym = @original_head_data.abilities[idx] || @original_head_data.abilities[0]
+      end
+    end
+
+    if @original_body_data.respond_to?(:ability_id)
+      # Triggered by actual Pokemon objects (Player's fusions)
+      body_sym = @original_body_data.ability_id
+    else
+      # Triggered by GameData::Species objects (Trainer / Wild battles)
+      if idx >= 2 && !@original_body_data.hidden_abilities.empty?
+        ha_idx = idx - 2
+        body_sym = @original_body_data.hidden_abilities[ha_idx] || @original_body_data.hidden_abilities[0]
+      else
+        body_sym = @original_body_data.abilities[idx] || @original_body_data.abilities[0]
+      end
+    end
+
+    # Wrap the symbol in GameData::Ability.get() to pass objects to the engine
+    head_abil = head_sym ? GameData::Ability.get(head_sym) : nil
+    body_abil = body_sym ? GameData::Ability.get(body_sym) : nil
     
     # Fallback if a component lacks an ability
     return super if !head_abil || !body_abil
 
     # Duplicate Clause
-    return head_abil if FusedAbilities.same_effects?(head_abil.id, body_abil.id)
-
+    return GameData::Ability.get(head_abil) if FusedAbilities.same_effects?(head_abil, body_abil)
+    
     # Blacklist Clause
-    if FusedAbilities.blacklisted_single?(head_abil.id) || 
-      FusedAbilities.blacklisted_single?(body_abil.id) || 
-      FusedAbilities.blacklisted_pair?(head_abil.id, body_abil.id)
-      return head_abil
+    if FusedAbilities.blacklisted_single?(head_abil) || 
+      FusedAbilities.blacklisted_single?(body_abil) || 
+      FusedAbilities.blacklisted_pair?(head_abil, body_abil)
+      return GameData::Ability.get(head_id)
     end
+
+    chosen_ability = head_abil
     
     # Register and return the combined ability proxy
-    combo_id = FusedAbilities.register_combo(head_abil.id, body_abil.id)
-    return GameData::Ability.get(combo_id)
+    combo_id = FusedAbilities.register_combo(head_abil, body_abil)
+    return GameData::Ability.get(combo_id) || GameData::Ability.get(chosen_ability)
   end
 
   def ability_id
