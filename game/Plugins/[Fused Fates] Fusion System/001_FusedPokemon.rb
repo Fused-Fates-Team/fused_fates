@@ -171,6 +171,10 @@ class VirtualSpeciesProxy
     return ret
   end
 
+  def egg_groups
+    return [:Undiscovered]
+  end
+
   # Handle any missing methods by forwarding them to the Head's species data
   def method_missing(method, *args, &block)
     if @head.respond_to?(method)
