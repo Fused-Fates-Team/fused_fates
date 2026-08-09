@@ -226,7 +226,7 @@ end
 # class Pokemon
 #==================================================================
 class Pokemon
-  alias vanilla_hasAbility? hasAbility? unless method_defined?(:vanilla_hasAbility?)
+  alias fusion_hasAbility? hasAbility? unless method_defined?(:fusion_hasAbility?)
 
   def hasAbility?(value = nil)
     current_ability = self.ability_id
@@ -261,7 +261,7 @@ class Pokemon
     end
 
     # Standard non-fused fallback check
-    return vanilla_hasAbility?(value)
+    return fusion_hasAbility?(value)
   end
 end
 
@@ -271,18 +271,18 @@ end
 module GameData
   class Ability
     # Alias the original name method to preserve standard functionality
-    alias vanilla_name name unless method_defined?(:vanilla_name)
+    alias fusion_name name unless method_defined?(:fusion_name)
     
     def name
       # Intercept dynamically created fusion abilities
       return "As One" if @id.to_s.start_with?("ASONE_")
       
       # Return normal message file names for everything else
-      return vanilla_name
+      return fusion_name
     end
 
     # Alias the original description method
-    alias vanilla_description description unless method_defined?(:vanilla_description)
+    alias fusion_description description unless method_defined?(:fusion_description)
     
     def description
       if @id.to_s.start_with?("ASONE_")
@@ -296,7 +296,7 @@ module GameData
       end
       
       # Return normal message file descriptions for everything else
-      return vanilla_description
+      return fusion_description
     end
   end
 end
@@ -305,7 +305,7 @@ end
 # class Battle::Battler
 #==================================================================
 class Battle::Battler
-  alias vanilla_hasActiveAbility? hasActiveAbility? unless method_defined?(:vanilla_hasActiveAbility?)
+  alias fusion_hasActiveAbility? hasActiveAbility? unless method_defined?(:fusion_hasActiveAbility?)
 
   def hasActiveAbility?(check_ability = nil, ignore_fainted = false)
     return false if fainted? && !ignore_fainted
@@ -353,14 +353,14 @@ end
 #==================================================================
 module Battle::AbilityEffects
   class << self
-    alias vanilla_trigger trigger unless method_defined?(:vanilla_trigger)
+    alias_method :fusion_trigger, :trigger unless method_defined?(:fusion_trigger)
 
     def trigger(hash, *args, ret: false)
       ability = args[0]
       components = FusedAbilities.get_components(ability)
       
       # If this is not a fused ability, proceed with the normal engine logic
-      return vanilla_trigger(hash, *args, ret: ret) if components.nil?
+      return fusion_trigger(hash, *args, ret: ret) if components.nil?
 
       # Create argument copies for both the Head and Body components
       args1 = args.dup
@@ -370,8 +370,8 @@ module Battle::AbilityEffects
       args2[0] = components[1]
 
       # Trigger both component abilities independently
-      res1 = vanilla_trigger(hash, *args1, ret: ret)
-      res2 = vanilla_trigger(hash, *args2, ret: ret)
+      res1 = fusion_trigger(hash, *args1, ret: ret)
+      res2 = fusion_trigger(hash, *args2, ret: ret)
 
       # Duck Typing Math Hooks
       if ret.is_a?(Numeric)

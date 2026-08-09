@@ -6,7 +6,7 @@
 # class DayCare
 #==================================================================
 class DayCare
-  alias :fused_fates_compatibility :compatibility unless method_defined?(:fused_fates_compatibility)
+  alias_method :fusion_compatibility, :compatibility unless method_defined?(:fusion_compatibility)
 
   def compatibility
     # Retrieve the deposited Pokémon pair in the Day Care
@@ -21,7 +21,7 @@ class DayCare
     end
       
     # If neither are fusions, proceed with standard Day Care compatibility logic
-    return fused_fates_compatibility
+    return fusion_compatibility
   end
 
   # Redefining this method, but keeping its contents blank, seemingly allows fusedpokemon

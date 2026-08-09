@@ -7,8 +7,8 @@
 #==================================================================
 class FusedPokemon
   # alias_method check_evolution_internal
-  unless method_defined?(:vanilla_check_evolution_internal)
-    alias_method :vanilla_check_evolution_internal, :check_evolution_internal
+  unless method_defined?(:fusion_check_evolution_internal)
+    alias_method :fusion_check_evolution_internal, :check_evolution_internal
   end
   
   # check_evolution_internal
@@ -78,7 +78,7 @@ class FusedPokemon
       end
 
       # Vanilla Fallback
-      return vanilla_check_evolution_internal(&block)
+      return fusion_check_evolution_internal(&block)
 
     ensure
       @__evaluating_fusion_evo = false
@@ -86,8 +86,8 @@ class FusedPokemon
   end
 
   # alias_method species=
-  unless method_defined?(:vanilla_species)
-    alias_method :vanilla_species, :species=
+  unless method_defined?(:fusion_species)
+    alias_method :fusion_species, :species=
   end
 
   def species=(value)
@@ -108,12 +108,12 @@ class FusedPokemon
         })
       end
 
-      vanilla_species(value)
+      fusion_species(value)
       return
     end
 
     # Pass-through for normal species changes
-    vanilla_species(value)
+    fusion_species(value)
   end
 end
 

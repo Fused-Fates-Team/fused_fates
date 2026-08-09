@@ -11,12 +11,12 @@ module GameData
       SUB_SCHEMA["FusionBody"] = [:fusion_body, "e", :Species]
     end
 
-    alias vanilla_to_trainer to_trainer
+    alias fusion_to_trainer to_trainer
 
     def to_trainer
 
       # Generate the standard trainer and standard Pokémon party
-      trainer = vanilla_to_trainer
+      trainer = fusion_to_trainer
       
       # Iterate through the generated party to apply any defined fusions
       trainer.party.each_with_index do |pkmn, i|
