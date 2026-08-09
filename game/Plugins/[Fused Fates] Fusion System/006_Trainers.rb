@@ -14,7 +14,6 @@ module GameData
     alias fusion_to_trainer to_trainer
 
     def to_trainer
-
       # Generate the standard trainer and standard Pokémon party
       trainer = fusion_to_trainer
       
