@@ -168,6 +168,9 @@ module WonderLinkEncoder
         end
         nature_id = nature_sym == 0 ? 0 : (GameData::Nature.keys.index(nature_sym) || 0)
 
+        # Gender
+        gender_id = pkmn.respond_to?(:gender) ? (pkmn.gender || 0) : 0
+
         # Form
         form_id = pkmn.respond_to?(:form) ? (pkmn.form || 0) : 0
 
@@ -175,7 +178,7 @@ module WonderLinkEncoder
         personal_id = pkmn.respond_to?(:personalID) ? (pkmn.personalID || 0) : 0
 
         # Pack Nature, Form, and Personal ID
-        binary_stream << [nature_id, form_id, personal_id].pack("nnV")
+        binary_stream << [nature_id, gender_id, form_id, personal_id].pack("nnVC")
       end
 
       # Compress the Data

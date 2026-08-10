@@ -41,6 +41,9 @@ module WonderLinkDecoder
         species_id, level, item_id = binary_stream.unpack("@#{offset}nCn")
         offset += 5
 
+        # Ensure level stays within valid bounds (1 to 100)
+        level = [[level, 1].max, 100].min
+
         # Unpack Fusion Head and Body IDs 
         f_head, f_body = binary_stream.unpack("@#{offset}nn")
         offset += 4
@@ -140,13 +143,14 @@ module WonderLinkDecoder
         end
 
         # Unpack Nature, Form, and Personal ID
-        nature_id, form_id, personal_id = binary_stream.unpack("@#{offset}nnV")
-        offset += 8
+        nature_id, gender_id, form_id, personal_id = binary_stream.unpack("@#{offset}nnVC")
+        offset += 9
 
         nature_sym = nature_id > 0 ? GameData::Nature.keys[nature_id] : nil
         pkmn.nature = nature_sym if nature_sym
         pkmn.form = form_id if pkmn.respond_to?(:form=)
         pkmn.personalID = personal_id if pkmn.respond_to?(:personalID=)
+        pkmn.gender = gender_id if pkmn.respond_to?(:gender=)
 
         # Recalculate stats with all attributes applied
         pkmn.calc_stats
