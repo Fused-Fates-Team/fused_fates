@@ -124,8 +124,17 @@ class FusedPokemon < Pokemon
   end
 
   def create_virtual_species_data
-    head_data = @original_head_data ? @original_head_data.species_data : GameData::Species.try_get(@fusion_head)
-    body_data = @original_body_data ? @original_body_data.species_data : GameData::Species.try_get(@fusion_body)
+    head_data = if @original_head_data
+                  @original_head_data.respond_to?(:species_data) ? @original_head_data.species_data : @original_head_data
+                else
+                  GameData::Species.try_get(@fusion_head)
+                end
+
+    body_data = if @original_body_data
+                  @original_body_data.respond_to?(:species_data) ? @original_body_data.species_data : @original_body_data
+                else
+                  GameData::Species.try_get(@fusion_body)
+                end
     
     return super unless head_data && body_data
     
@@ -135,9 +144,19 @@ class FusedPokemon < Pokemon
   def compatible_with_move?(move_id)
     return super(move_id) unless respond_to?(:fused?) && fused?
     
-    # Fetch form-specific data
-    head_data = @original_head_data ? @original_head_data.species_data : GameData::Species.get(@fusion_head)
-    body_data = @original_body_data ? @original_body_data.species_data : GameData::Species.get(@fusion_body)
+    # Safely fetch form-specific head data
+    head_data = if @original_head_data
+                  @original_head_data.respond_to?(:species_data) ? @original_head_data.species_data : @original_head_data
+                else
+                  GameData::Species.get(@fusion_head)
+                end
+
+    # Safely fetch form-specific body data
+    body_data = if @original_body_data
+                  @original_body_data.respond_to?(:species_data) ? @original_body_data.species_data : @original_body_data
+                else
+                  GameData::Species.get(@fusion_body)
+                end
 
     head_compat = head_data.respond_to?(:compatible_with_move?) ? head_data.compatible_with_move?(move_id) : false
     body_compat = body_data.respond_to?(:compatible_with_move?) ? body_data.compatible_with_move?(move_id) : false
@@ -152,9 +171,19 @@ class FusedPokemon < Pokemon
 
   # Returns a combined, unique array of all level-up move IDs from both Components
   def fusion_level_up_moves
-    # Fetch form-specific data
-    head_data = @original_head_data ? @original_head_data.species_data : GameData::Species.try_get(@fusion_head)
-    body_data = @original_body_data ? @original_body_data.species_data : GameData::Species.try_get(@fusion_body)
+    # Safely fetch form-specific head data
+    head_data = if @original_head_data
+                  @original_head_data.respond_to?(:species_data) ? @original_head_data.species_data : @original_head_data
+                else
+                  GameData::Species.try_get(@fusion_head)
+                end
+
+    # Safely fetch form-specific body data
+    body_data = if @original_body_data
+                  @original_body_data.respond_to?(:species_data) ? @original_body_data.species_data : @original_body_data
+                else
+                  GameData::Species.try_get(@fusion_body)
+                end
 
     moves_list = []
 

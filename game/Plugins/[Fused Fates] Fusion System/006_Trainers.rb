@@ -11,7 +11,7 @@ module GameData
       SUB_SCHEMA["FusionBody"] = [:fusion_body, "e", :Species]
     end
 
-    alias fusion_to_trainer to_trainer
+    alias_method :fusion_to_trainer, :to_trainer unless method_defined?(:fusion_to_trainer)
 
     def to_trainer
       # Generate the standard trainer and standard Pokémon party
@@ -26,7 +26,7 @@ module GameData
         if pkmn_data.is_a?(Hash)
           fusion_body = pkmn_data[:fusion_body] || pkmn_data["fusion_body"] || pkmn_data[:FusionBody]
         elsif pkmn_data.respond_to?(:fusion_body)
-          fusion_body = pkmn_body.fusion_body
+          fusion_body = pkmn_data.fusion_body
         end
         
         if fusion_body

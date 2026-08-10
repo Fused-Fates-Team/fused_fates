@@ -59,7 +59,7 @@ module WonderLinkDecoder
         offset += 6
 
         # Map IDs back to symbols or valid GameData objects
-        species_sym = GameData::Species.keys[species_id] || :BULBASAUR
+        species_sym = species_id > 0 ? GameData::Species.keys[species_id] : nil        
         item_sym = item_id > 0 ? GameData::Item.keys[item_id] : nil
         ability_sym = ability_id > 0 ? GameData::Ability.keys[ability_id] : nil
         
@@ -68,8 +68,19 @@ module WonderLinkDecoder
 
         # Instantiate the Pokémon
         if f_head_sym && f_body_sym
-          fused_species_sym = :"#{f_head_sym}_#{f_body_sym}"
-          pkmn = FusedPokemon.new(fused_species_sym, level, f_head_sym, f_body_sym)
+          combined_sym = :"#{f_head_sym}_#{f_body_sym}".to_sym
+
+          pkmn = FusedPokemon.new(combined_sym, level, f_head_sym, f_body_sym)
+
+          # Assign fusion-specific attributes and species data
+          pkmn.fusion_head = f_head_sym
+          pkmn.fusion_body = f_body_sym
+          pkmn.original_head_data = GameData::Species.try_get(f_head_sym)
+          pkmn.original_body_data = GameData::Species.try_get(f_body_sym)
+
+          pkmn.create_virtual_species_data if pkmn.respond_to?(:fused?)
+
+          pkmn.calc_stats if pkmn.respond_to?(:calc_stats)
         else
           pkmn = Pokemon.new(species_sym, level)
         end
