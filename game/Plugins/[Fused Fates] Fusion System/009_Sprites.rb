@@ -237,7 +237,7 @@ class Battle::Scene::BattlerSprite < RPG::Sprite
     @pkmn = pkmn
 
     if pkmn.respond_to?(:fused?) && pkmn.fused?
-      # Clear standard Essentials animated bitmaps to prevent visual tearing
+      # Clear standard animated bitmaps to prevent visual tearing
       @_iconBitmap&.dispose if @_iconBitmap
 
       # Extract forms safely

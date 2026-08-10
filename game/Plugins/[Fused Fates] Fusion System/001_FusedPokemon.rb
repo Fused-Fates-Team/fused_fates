@@ -11,6 +11,16 @@ class FusedPokemon < Pokemon
 
   # Alias Initialization to include fusion tracking
   def initialize(species, level, head = nil, body = nil)
+    # Parse compound fusion symbol if passed directly
+    if species.to_s.include?('_')
+      parts = species.to_s.split('_')
+      @fusion_head = parts[0].upcase.to_sym
+      @fusion_body = parts[1..-1].join('_').upcase.to_sym
+    else
+      @fusion_head = head || species
+      @fusion_body = body
+    end
+
     # Check if a full Pokemon object was passed in for the Head
     if head.is_a?(Pokemon)
       @fusion_head = head.species
@@ -28,7 +38,8 @@ class FusedPokemon < Pokemon
     end
     
     # Initialize the base Pokemon object
-    super(species, level)
+    base_species = @fusion_head || species
+    super(base_species, level)
 
     # Restore the Pokémon's form
     if head.is_a?(Pokemon)

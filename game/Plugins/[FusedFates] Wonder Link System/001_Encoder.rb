@@ -1,0 +1,162 @@
+#================================================================================================
+# Pokémon Fused Fates Wonder Link System - 001_Encoder.rb
+#================================================================================================
+require 'zlib'
+
+#==================================================================
+# module WonderLinkEncoder
+#==================================================================
+module WonderLinkEncoder
+  # Exports the player's current party to the clipboard as a compressed Base64 string
+  def self.export_party_to_clipboard
+    # Isolate the Data
+    party = $player.party
+
+    if party.empty?
+      pbMessage(_INTL("You don't have any Pokémon in your party to export!"))
+      return false
+    end
+
+    begin
+      binary_stream = ""
+
+      # Build a lightweight, compact array of hashes containing only essential data
+      party.map do |pkmn|
+        raw_species = pkmn.respond_to?(:species) ? pkmn.species : 0
+        species_sym = case raw_species
+        when Symbol
+          raw_species
+        when String
+          raw_species.to_sym
+        when Integer
+          raw_species > 0 ? (GameData::Species.keys[raw_species] || :BULBASAUR) : :BULBASAUR
+        else
+          GameData::Species.try_get(raw_species)&.id || :BULBASAUR
+        end
+        species = GameData::Species.keys.index(species_sym) || 0
+
+        level = pkmn.level.is_a?(Integer) ? pkmn.level : 1
+
+        raw_item = pkmn.respond_to?(:item) ? pkmn.item : nil
+        item_sym = case raw_item
+        when Symbol
+          raw_item
+        when String
+          raw_item.to_sym
+        when Integer
+          raw_item > 0 ? (GameData::Item.keys[raw_item] || 0) : 0
+        else
+          raw_item ? (GameData::Item.try_get(raw_item)&.id || 0) : 0
+        end
+        item = item_sym == 0 ? 0 : (GameData::Item.keys.index(item_sym) || 0)
+
+        # Pack Species (16-bit), Level (8-bit), and Item ID (16-bit)
+        binary_stream << [species, level, item].pack("nCn")
+
+        # Fusion IDs if applicable (16-bit each)
+        raw_f_head = pkmn.respond_to?(:fusion_head) ? pkmn.fusion_head : 0
+        f_head_sym = case raw_f_head
+        when Symbol
+          raw_f_head
+        when String
+          raw_f_head.to_sym
+        when Integer
+          raw_f_head > 0 ? (GameData::Species.keys[raw_f_head] || 0) : 0
+        else
+          raw_f_head ? (GameData::Species.try_get(raw_f_head)&.id || 0) : 0
+        end
+        f_head = f_head_sym == 0 ? 0 : (GameData::Species.keys.index(f_head_sym) || 0)
+
+        raw_f_body = pkmn.respond_to?(:fusion_body) ? pkmn.fusion_body : 0
+        f_body_sym = case raw_f_body
+        when Symbol
+          raw_f_body
+        when String
+          raw_f_body.to_sym
+        when Integer
+          raw_f_body > 0 ? (GameData::Species.keys[raw_f_body] || 0) : 0
+        else
+          raw_f_body ? (GameData::Species.try_get(raw_f_body)&.id || 0) : 0
+        end
+        f_body = f_body_sym == 0 ? 0 : (GameData::Species.keys.index(f_body_sym) || 0)
+
+        binary_stream << [f_head, f_body].pack("nn")
+
+        # Ability serialization (16-bit ID)
+        raw_ability = pkmn.respond_to?(:ability) ? pkmn.ability : nil
+        ability_sym = case raw_ability
+        when Symbol
+          raw_ability
+        when String
+          raw_ability.to_sym
+        when Integer
+          raw_ability > 0 ? (GameData::Ability.keys[raw_ability] || 0) : 0
+        else
+          raw_ability ? (GameData::Ability.try_get(raw_ability)&.id || 0) : 0
+        end
+        ability = ability_sym == 0 ? 0 : (GameData::Ability.keys.index(ability_sym) || 0)
+        binary_stream << [ability].pack("n")
+
+        # Moveset serialization (Up to 4 moves, 16-bit ID each)
+        move_ids = []
+        4.times do |i|
+          move = pkmn.moves[i]
+          raw_move = move ? move.id : 0
+          move_sym = case raw_move
+          when Symbol
+            raw_move
+          when String
+            raw_move.to_sym
+          when Integer
+            raw_move > 0 ? (GameData::Move.keys[raw_move] || 0) : 0
+          else
+            raw_move ? (GameData::Move.try_get(raw_move)&.id || 0) : 0
+          end
+          move_ids << (move_sym == 0 ? 0 : (GameData::Move.keys.index(move_sym) || 0))
+        end
+        binary_stream << move_ids.pack("nnnn")
+
+        # IVs packed as 6 single bytes
+        iv_hash = pkmn.iv
+        ivs = [:HP, :ATTACK, :DEFENSE, :SPECIAL_ATTACK, :SPECIAL_DEFENSE, :SPEED].map do |stat|
+          if iv_hash.is_a?(Hash)
+            iv_hash[stat.to_s] || 0
+          else
+            31
+          end
+        end
+        binary_stream << ivs.pack("CCCCCC")
+
+        # EVs packed as 6 single bytes
+        ev_hash = pkmn.ev
+        evs = [:HP, :ATTACK, :DEFENSE, :SPECIAL_ATTACK, :SPECIAL_DEFENSE, :SPEED].map do |stat|
+          if ev_hash.is_a?(Hash)
+            ev_hash[stat.to_s] || 0
+          else
+            0
+          end
+        end
+        binary_stream << evs.pack("CCCCCC")
+      end
+
+      # Compress the Data
+      # Shrinks the massive byte size of a 6-slot fused party
+      compressed_data = Zlib::Deflate.deflate(binary_stream, Zlib::BEST_COMPRESSION)
+
+      # Encode the Data
+      wonder_link_code = Base64.strict_encode64(compressed_data)
+      
+      # Copy to Clipboard
+      Input.clipboard = wonder_link_code
+
+      pbMessage(_INTL("Your Wonder Link code has been copied to your clipboard!"))
+      return true
+
+    rescue => error
+      # Safety wrapper to prevent crashes during the export process
+      pbMessage(_INTL("An error occurred while generating your Wonder Link code."))
+      puts "Wonder Link Export Error: #{error.message}"
+      return false
+    end
+  end
+end
