@@ -69,8 +69,8 @@ module GameData
 
     def self.generate_procedural_fusion_bitmap(head_id, head_form, body_id, body_form, shiny, back)
       # Retrieve base species file paths
-      head_path = GameData::Species.sprite_filename(head_id, head_form, 0, shiny)
-      body_path = GameData::Species.sprite_filename(body_id, body_form, 0, shiny)
+      head_path = GameData::Species.sprite_filename(head_id, head_form, 0, shiny, false, back)
+      body_path = GameData::Species.sprite_filename(body_id, body_form, 0, shiny, false, back)
       
       normal_head_path = GameData::Species.sprite_filename(head_id, 0, 0, false, false, back)
       normal_body_path = GameData::Species.sprite_filename(body_id, 0, 0, false, false, back)
@@ -266,23 +266,48 @@ end
 class PokemonSprite < Sprite
   alias_method :fusion_setPokemonBitmap, :setPokemonBitmap unless method_defined?(:fusion_setPokemonBitmap)
 
-  def setPokemonBitmap(pkmn, back = false)
-    if pkmn.respond_to?(:fused?) && pkmn.fused?
-      @_iconBitmap&.dispose
-      @_iconBitmap = nil
-      self.color = Color.new(0, 0, 0, 0)
-
-      # Extract forms safely
-      head_form = pkmn.original_head_data ? pkmn.original_head_data.form : 0
-      body_form = pkmn.original_body_data ? pkmn.original_body_data.form : 0
-      
-      bitmap = GameData::Species.fusion_sprite_bitmap(pkmn.fusion_head, pkmn.fusion_body, head_form, body_form, pkmn.shiny?, back)
-      
-      self.bitmap = bitmap if bitmap
-      changeOrigin
+  def setPokemonBitmap(pokemon, back = false)
+    # Aggressive State Reset
+    @_iconbitmap&.dispose if defined?(@_iconbitmap)
+    @_iconbitmap = nil
+    
+    # Catch nil slots (empty PC slots) explicitly
+    if !pokemon
+      self.bitmap = nil
       return
     end
-    fusion_setPokemonBitmap(pkmn, back)
+
+    # Render Fused Pokémon
+    if pokemon.respond_to?(:fused?) && pokemon.fused?
+      begin        
+        # ID Fallbacks
+        head_id = (pokemon.respond_to?(:fusion_head) && pokemon.fusion_head) ? pokemon.fusion_head : pokemon.species
+        body_id = (pokemon.respond_to?(:fusion_body) && pokemon.fusion_body) ? pokemon.fusion_body : pokemon.species
+        
+        # Form extraction 
+        head_form = (pokemon.respond_to?(:original_head_data) && pokemon.original_head_data) ? pokemon.original_head_data.form : 0
+        body_form = (pokemon.respond_to?(:original_body_data) && pokemon.original_body_data) ? pokemon.original_body_data.form : 0
+        
+        shiny = pokemon.respond_to?(:shiny?) ? pokemon.shiny? : false
+        
+        # Generate the fusion bitmap
+        bmp = GameData::Species.fusion_sprite_bitmap(head_id, body_id, head_form, body_form, shiny, back)
+        
+        # Unconditional canvas assignment
+        self.bitmap = bmp || nil
+        
+        # Safe Origin Adjustment
+        changeOrigin if self.bitmap && respond_to?(:changeOrigin)
+        
+      rescue => error
+        # If the fusion data throws an error, wipe the canvas instead of ghosting
+        self.bitmap = nil
+      end
+      return
+    end
+
+    # Fallback to the original method for standard Pokémon
+    fusion_setPokemonBitmap(pokemon, back)
   end
 end
 
