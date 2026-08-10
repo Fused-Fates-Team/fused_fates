@@ -152,8 +152,26 @@ module WonderLinkDecoder
         pkmn.personalID = personal_id if pkmn.respond_to?(:personalID=)
         pkmn.gender = gender_id if pkmn.respond_to?(:gender=)
 
+        # Unpack Ribbons
+        ribbon_count = binary_stream.unpack("@#{offset}C").first
+        offset += 1
+        ribbons = []
+        ribbon_count.times do
+          ribbon_id = binary_stream.unpack("@#{offset}n").first
+          offset += 2
+          ribbon_sym = ribbon_id > 0 ? GameData::Ribbon.keys[ribbon_id] : nil
+          ribbons.push(ribbon_sym) if ribbon_sym
+        end
+        if pkmn.respond_to?(:ribbons=)
+          pkmn.ribbons = ribbons
+        elsif pkmn.respond_to?(:ribbons) && pkmn.ribbons.respond_to?(:clear)
+          pkmn.ribbons.clear
+          ribbons.each { |r| pkmn.ribbons.push(r) if pkmn.ribbons.respond_to?(:push) }
+        end
+
         # Recalculate stats with all attributes applied
         pkmn.calc_stats
+
         party.push(pkmn)
       end
 

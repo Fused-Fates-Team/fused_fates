@@ -74,6 +74,12 @@ class FusedPokemon < Pokemon
     return !@fusion_head.nil? && !@fusion_body.nil?
   end
 
+  # Ensure core engine methods receive a valid registered base species
+  def species
+    return @fusion_head if fused? && @fusion_head
+    return super
+  end
+
   # Delegate core attributes to the primary Pokémon
   def species=(species_id)
     # Pass through for normal Pokémon
@@ -112,7 +118,7 @@ class FusedPokemon < Pokemon
     
     # Assign the combined species to the outer Pokémon
     old_outer_form = @form
-    super(species_id)
+    super(@fusion_head)
     @form = old_outer_form if old_outer_form
   end
 

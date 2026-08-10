@@ -179,6 +179,22 @@ module WonderLinkEncoder
 
         # Pack Nature, Form, and Personal ID
         binary_stream << [nature_id, gender_id, form_id, personal_id].pack("nnVC")
+
+        # Pack Ribbons
+        ribbons = pkmn.respond_to?(:ribbons) ? pkmn.ribbons : []
+        binary_stream << [ribbons.length].pack("C")
+        ribbons.each do |ribbon|
+          ribbon_sym = case ribbon
+          when Symbol
+            ribbon
+          when String
+            ribbon.to_sym
+          else
+            GameData::Ribbon.try_get(ribbon)&.id || 0
+          end
+          ribbon_id = ribbon_sym == 0 ? 0 : (GameData::Ribbon.keys.index(ribbon_sym) || 0)
+          binary_stream << [ribbon_id].pack("n")
+        end
       end
 
       # Compress the Data

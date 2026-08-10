@@ -82,7 +82,7 @@ module FusedAbilities
       GameData::Ability.register({
         :id => combo_id,
         :name => "As One",
-        :description => "Combines the effects of #{head_name} and #{body_name}."
+        :description => "Combines #{head_name} and #{body_name}."
       })
     end
 
@@ -291,7 +291,7 @@ module GameData
           # Safely fetch the names of both component abilities
           head_name = GameData::Ability.try_get(components[0])&.name || "Unknown"
           body_name = GameData::Ability.try_get(components[1])&.name || "Unknown"
-          return "Combines the effects of #{head_name} and #{body_name}."
+          return "Combines #{head_name} and #{body_name}."
         end
       end
       
