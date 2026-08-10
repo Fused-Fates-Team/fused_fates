@@ -20,6 +20,11 @@ module WonderLinkEncoder
     begin
       binary_stream = ""
 
+      # Pack the Party Owner's Name
+      owner_name = $player.name rescue "Unknown"
+      binary_stream << [owner_name.bytesize].pack("C")
+      binary_stream << owner_name
+
       # Build a lightweight, compact array of hashes containing only essential data
       party.map do |pkmn|
         raw_species = pkmn.respond_to?(:species) ? pkmn.species : 0
@@ -137,6 +142,17 @@ module WonderLinkEncoder
           end
         end
         binary_stream << evs.pack("CCCCCC")
+
+        # Pack the Pokémon's OT Name
+        ot_name = ""
+        if pkmn.respond_to?(:owner) && pkmn.owner
+          ot_name = pkmn.owner.name || owner_name
+        else
+          ot_name = owner_name
+        end
+
+        binary_stream << [ot_name.bytesize].pack("C")
+        binary_stream << ot_name
       end
 
       # Compress the Data

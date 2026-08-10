@@ -30,6 +30,12 @@ module WonderLinkDecoder
       party = []
       offset = 0
 
+      # Unpack the Party Owner's Name first
+      owner_name_len = binary_stream.unpack("@#{offset}C").first
+      offset += 1
+      party_owner_name = binary_stream[offset, owner_name_len]
+      offset += owner_name_len
+
       # Each Pokémon block is precisely 31 bytes:
       # Species (2) + Level (1) + Item (2) + Fusion Head (2) + Fusion Body (2) + 
       # Ability (2) + Moves (8) + IVs (6) + EVs (6) = 31 bytes.
@@ -57,6 +63,12 @@ module WonderLinkDecoder
         # Unpack EVs (6 bytes)
         ev_data = binary_stream.unpack("@#{offset}CCCCCC")
         offset += 6
+
+        # Unpack the Pokémon's OT Name
+        ot_name_len = binary_stream.unpack("@#{offset}C").first
+        offset += 1
+        ot_name = binary_stream[offset, ot_name_len]
+        offset += ot_name_len
 
         # Map IDs back to symbols or valid GameData objects
         species_sym = species_id > 0 ? GameData::Species.keys[species_id] : nil        
@@ -125,12 +137,17 @@ module WonderLinkDecoder
           end
         end
 
+        # Restore the OT Name
+        if defined?(Pokemon::Owner) && pkmn.respond_to?(:owner) && pkmn.owner
+          pkmn.owner.name = ot_name
+        end
+
         # Recalculate stats with all attributes applied
         pkmn.calc_stats
         party.push(pkmn)
       end
 
-      return party
+      return { party: party, owner: party_owner_name }
 
     rescue => error
       pbMessage(_INTL("An error occurred while decoding the Wonder Link code."))

@@ -15,11 +15,18 @@ module WonderLinkTrainer
     end
 
     # Delegate party array extraction to WonderLinkDecoder
-    party = WonderLinkDecoder.decode_party_array(code)
-    if party.nil? || party.empty?
+    decoded_data = WonderLinkDecoder.decode_party_array(code)
+
+    if decoded_data.nil? || decoded_data[:party].nil? || decoded_data[:party].empty?
       pbMessage(_INTL("The Wonder Link code contained no valid Pokémon."))
       return nil
     end
+
+    party = decoded_data[:party]
+
+    # Assign the decoded party owner's name
+    trainer_name = decoded_data[:owner]
+    trainer_name = fallback_name if trainer_name.nil? || trainer_name.strip.empty?
 
     trainer_type = :RIVAL1
 
@@ -31,9 +38,9 @@ module WonderLinkTrainer
   end
 
   # Immediately initiate a trainer battle using the clipboard code
-  def self.start_battle_from_clipboard(trainer_name = "Wonder Rival")
+  def self.start_battle_from_clipboard(fallback_name = "Wonder Rival")
     code = Input.clipboard
-    trainer = create_trainer_from_code(code, trainer_name)
+    trainer = create_trainer_from_code(code, fallback_name)
     return false unless trainer
 
     TrainerBattle.start(trainer)
