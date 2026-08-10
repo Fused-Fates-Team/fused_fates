@@ -212,7 +212,7 @@ class FusionBitmapWrapper
     @bitmap = custom_bitmap
   end
 
-  # These dimensional methods are crucial for pbSetPosition to work!
+  # These dimensional methods are crucial for pbSetPosition to work
   def width; return @bitmap ? @bitmap.width : 0; end
   def height; return @bitmap ? @bitmap.height : 0; end
   
@@ -364,7 +364,7 @@ class PokemonIconSprite < Sprite
     if self.bitmap && @anim_frames && @anim_frames > 1
       @anim_ticker += 1
       
-      if @anim_ticker >= 25
+      if @anim_ticker >= 5 && !@selected
         @anim_ticker = 0
         @current_frame = (@current_frame + 1) % @anim_frames
         
