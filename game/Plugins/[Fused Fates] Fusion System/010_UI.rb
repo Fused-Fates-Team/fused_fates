@@ -15,8 +15,6 @@ class PokemonSummary_Scene
     update_fusion_sprite
 
     # Enforce strict, bulletproof mutual exclusivity EVERY FRAME (60 FPS)
-    # Fix: We only force the INACTIVE sprite to hide. 
-    # We do NOT force visible = true for the active sprite, so drawSelectedMove can properly hide it.
     if @pokemon && @pokemon.respond_to?(:fused?) && @pokemon.fused?
       if @sprites["pokemon"]
         @sprites["pokemon"].visible = false
@@ -116,9 +114,9 @@ class PokemonSummary_Scene
     fusion_drawSelectedMove(move_to_learn, selected_move)
 
     if @pokemon.respond_to?(:fused?) && @pokemon.fused?
-      @sprites["fusedpokemon"].visible = false
+      @sprites["fusedpokemon"].visible = false if @sprites["fusedpokemon"]
     else
-      @sprites["pokemon"].visible = false
+      @sprites["pokemon"].visible = false if @sprites["pokemon"]
     end
   end
 end
