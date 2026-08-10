@@ -11,11 +11,38 @@ class FusedPokemon < Pokemon
 
   # Alias Initialization to include fusion tracking
   def initialize(species, level, head = nil, body = nil)
-    @fusion_head = head
-    @fusion_body = body
+    # Check if a full Pokemon object was passed in for the Head
+    if head.is_a?(Pokemon)
+      @fusion_head = head.species
+      @original_head_data = head.clone
+    else
+      @fusion_head = head
+    end
+    
+    # Check if a full Pokemon object was passed in for the Body
+    if body.is_a?(Pokemon)
+      @fusion_body = body.species
+      @original_body_data = body.clone
+    else
+      @fusion_body = body
+    end
     
     # Initialize the base Pokemon object
     super(species, level)
+
+    # Restore the Pokémon's form
+    if head.is_a?(Pokemon)
+      @form = head.form
+      @original_head_data.form = head.form 
+    end
+    
+    if body.is_a?(Pokemon)
+      @original_body_data.form = body.form
+    end
+
+    # Clear the proxy cache generated during super() and recalculate stats
+    @_virtual_species_data = nil
+    calc_stats if respond_to?(:calc_stats)
   end
 
   def play_cry(volume = 90, pitch = 100)
@@ -50,23 +77,32 @@ class FusedPokemon < Pokemon
 
       # Update the hidden original head data if its species changed
       if @original_head_data && @original_head_data.species != new_head
+        old_form = @original_head_data.form # Save the alternate form
         @original_head_data.species = new_head
+        @original_head_data.form = old_form # Restore the alternate form
         @original_head_data.calc_stats if @original_head_data.respond_to?(:calc_stats)
       end
 
       # Update the hidden original body data if its species changed
       if @original_body_data && @original_body_data.species != new_body
+        old_body_form = @original_body_data.form 
         @original_body_data.species = new_body
+        @original_body_data.form = old_body_form 
         @original_body_data.calc_stats if @original_body_data.respond_to?(:calc_stats)
       end
 
       # Synchronize the fusion trackers
       @fusion_head = new_head
       @fusion_body = new_body
+
+      # Clear the proxy cache so it will rebuild with the new species data
+      @_virtual_species_data = nil
     end
     
     # Assign the combined species to the outer Pokémon
+    old_outer_form = @form
     super(species_id)
+    @form = old_outer_form if old_outer_form
   end
 
   # Dynamic species data proxy
@@ -77,8 +113,9 @@ class FusedPokemon < Pokemon
   end
 
   def create_virtual_species_data
-    head_data = GameData::Species.try_get(@fusion_head)
-    body_data = GameData::Species.try_get(@fusion_body)
+    head_data = @original_head_data ? @original_head_data.species_data : GameData::Species.try_get(@fusion_head)
+    body_data = @original_body_data ? @original_body_data.species_data : GameData::Species.try_get(@fusion_body)
+    
     return super unless head_data && body_data
     
     return VirtualSpeciesProxy.new(head_data, body_data, @original_head_data, @original_body_data)
@@ -86,8 +123,10 @@ class FusedPokemon < Pokemon
 
   def compatible_with_move?(move_id)
     return super(move_id) unless respond_to?(:fused?) && fused?
-    head_data = GameData::Species.get(@fusion_head)
-    body_data = GameData::Species.get(@fusion_body)
+    
+    # Fetch form-specific data
+    head_data = @original_head_data ? @original_head_data.species_data : GameData::Species.get(@fusion_head)
+    body_data = @original_body_data ? @original_body_data.species_data : GameData::Species.get(@fusion_body)
 
     head_compat = head_data.respond_to?(:compatible_with_move?) ? head_data.compatible_with_move?(move_id) : false
     body_compat = body_data.respond_to?(:compatible_with_move?) ? body_data.compatible_with_move?(move_id) : false
@@ -102,8 +141,9 @@ class FusedPokemon < Pokemon
 
   # Returns a combined, unique array of all level-up move IDs from both Components
   def fusion_level_up_moves
-    head_data = GameData::Species.try_get(@fusion_head)
-    body_data = GameData::Species.try_get(@fusion_body)
+    # Fetch form-specific data
+    head_data = @original_head_data ? @original_head_data.species_data : GameData::Species.try_get(@fusion_head)
+    body_data = @original_body_data ? @original_body_data.species_data : GameData::Species.try_get(@fusion_body)
 
     moves_list = []
 
@@ -173,6 +213,27 @@ class VirtualSpeciesProxy
 
   def egg_groups
     return [:Undiscovered]
+  end
+
+  # Combines TM, HM, and Move Tutor compatibility arrays
+  def tutor_moves
+    head_tutor = @head.respond_to?(:tutor_moves) && @head.tutor_moves ? @head.tutor_moves : []
+    body_tutor = @body.respond_to?(:tutor_moves) && @body.tutor_moves ? @body.tutor_moves : []
+    return (head_tutor + body_tutor).uniq
+  end
+
+  # Combines Egg Moves so the Daycare/Move Relearner can access both
+  def egg_moves
+    head_egg = @head.respond_to?(:egg_moves) && @head.egg_moves ? @head.egg_moves : []
+    body_egg = @body.respond_to?(:egg_moves) && @body.egg_moves ? @body.egg_moves : []
+    return (head_egg + body_egg).uniq
+  end
+
+  # Ensures TM/HM items interacting directly with species_data respect both components
+  def compatible_with_move?(move_id)
+    head_compat = @head.respond_to?(:compatible_with_move?) ? @head.compatible_with_move?(move_id) : false
+    body_compat = @body.respond_to?(:compatible_with_move?) ? @body.compatible_with_move?(move_id) : false
+    return head_compat || body_compat
   end
 
   # Handle any missing methods by forwarding them to the Head's species data

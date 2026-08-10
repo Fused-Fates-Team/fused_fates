@@ -333,3 +333,38 @@ ItemHandlers::UseOnPokemon.add(:SERIOUSMINT, proc { |item, qty, pkmn, scene|
   end
   pbNatureChangingMint(:SERIOUS, item, pkmn, scene)
 })
+
+ItemHandlers::UseOnPokemon.add(:ROTOMCATALOG, proc { |item, qty, pkmn, scene|
+  if pkmn.respond_to?(:fused?) && pkmn.fused?
+    scene.pbDisplay(_INTL("It had no effect."))
+    next false
+  end
+  if !pkmn.isSpecies?(:ROTOM)
+    scene.pbDisplay(_INTL("It had no effect."))
+    next false
+  elsif pkmn.fainted?
+    scene.pbDisplay(_INTL("This can't be used on the fainted Pokémon."))
+    next false
+  end
+  choices = [
+    _INTL("Light bulb"),
+    _INTL("Microwave oven"),
+    _INTL("Washing machine"),
+    _INTL("Refrigerator"),
+    _INTL("Electric fan"),
+    _INTL("Lawn mower"),
+    _INTL("Cancel")
+  ]
+  new_form = scene.pbShowCommands(_INTL("Which appliance would you like to order?"), choices, pkmn.form)
+  if new_form == pkmn.form
+    scene.pbDisplay(_INTL("It won't have any effect."))
+    next false
+  elsif new_form >= 0 && new_form < choices.length - 1
+    pkmn.setForm(new_form) do
+      scene.pbRefresh
+      scene.pbDisplay(_INTL("{1} transformed!", pkmn.name))
+    end
+    next true
+  end
+  next false
+})

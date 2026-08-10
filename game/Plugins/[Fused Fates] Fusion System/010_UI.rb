@@ -15,21 +15,17 @@ class PokemonSummary_Scene
     update_fusion_sprite
 
     # Enforce strict, bulletproof mutual exclusivity EVERY FRAME (60 FPS)
+    # Fix: We only force the INACTIVE sprite to hide. 
+    # We do NOT force visible = true for the active sprite, so drawSelectedMove can properly hide it.
     if @pokemon && @pokemon.respond_to?(:fused?) && @pokemon.fused?
       if @sprites["pokemon"]
         @sprites["pokemon"].visible = false
         @sprites["pokemon"].bitmap = nil
       end
-      if @sprites["fusedpokemon"]
-        @sprites["fusedpokemon"].visible = true
-      end
     else
       if @sprites["fusedpokemon"]
         @sprites["fusedpokemon"].visible = false
         @sprites["fusedpokemon"].bitmap = nil
-      end
-      if @sprites["pokemon"]
-        @sprites["pokemon"].visible = true
       end
     end
   end
@@ -46,6 +42,13 @@ class PokemonSummary_Scene
 
     # Instantly load the fusion bitmap and lock coordinates before the screen fades in
     update_fusion_sprite if respond_to?(:update_fusion_sprite)
+
+    # Safely restore the active sprite's visibility whenever the page is drawn 
+    if @pokemon && @pokemon.respond_to?(:fused?) && @pokemon.fused?
+      @sprites["fusedpokemon"].visible = true if @sprites["fusedpokemon"]
+    else
+      @sprites["pokemon"].visible = true if @sprites["pokemon"]
+    end
   end
 
   def update_fusion_sprite
@@ -59,8 +62,16 @@ class PokemonSummary_Scene
       @last_summary_pokemon = current_pkmn
 
       if current_pkmn.respond_to?(:fused?) && current_pkmn.fused?
+        head_form = @pokemon.original_head_data ? @pokemon.original_head_data.form : 0
+        body_form = @pokemon.original_body_data ? @pokemon.original_body_data.form : 0
+
         # Generate and assign the fusion bitmap for the summary screen
-        bitmap = GameData::Species.fusion_sprite_bitmap(current_pkmn.fusion_head, current_pkmn.fusion_body, current_pkmn.shiny?) rescue nil
+        bitmap = GameData::Species.fusion_sprite_bitmap(
+          current_pkmn.fusion_head, current_pkmn.fusion_body, 
+          head_form, body_form, 
+          current_pkmn.shiny?
+        ) rescue nil
+
         @sprites["fusedpokemon"].bitmap = bitmap
         @sprites["fusedpokemon"].setOffset(PictureOrigin::CENTER)
         @sprites["fusedpokemon"].x = 104
@@ -96,6 +107,18 @@ class PokemonSummary_Scene
         [body_name, 435, 118, :center, Color.new(64, 64, 64), Color.new(176, 176, 176)]
       ]
       pbDrawTextPositions(overlay, text_pos)
+    end
+  end
+
+  alias_method :fusion_drawSelectedMove, :drawSelectedMove unless method_defined?(:fusion_drawSelectedMove)
+
+  def drawSelectedMove(move_to_learn, selected_move)
+    fusion_drawSelectedMove(move_to_learn, selected_move)
+
+    if @pokemon.respond_to?(:fused?) && @pokemon.fused?
+      @sprites["fusedpokemon"].visible = false
+    else
+      @sprites["pokemon"].visible = false
     end
   end
 end

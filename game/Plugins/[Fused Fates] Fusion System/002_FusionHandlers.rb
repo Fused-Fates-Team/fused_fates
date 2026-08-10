@@ -6,6 +6,15 @@
 # module FusionHandlers
 #==================================================================
 module FusionHandlers
+  # Array of species that should NOT be allowed to fuse if they are in an alternate form (form > 0)
+  # Permanent forms (like Wormadam, Regional variants, Gastrodon) are omitted from this list so they can still fuse
+  RESTRICTED_ALT_FORMS = [
+    :ROTOM, :DIALGA, :PALKIA, :GIRATINA, :SHAYMIN, :TORNADUS, :THUNDURUS, :LANDORUS,
+    :KYUREM, :KELDEO, :MELOETTA, :HOOPA, :DEOXYS, :NECROZMA, :CALYREX,
+    :ZACIAN, :ZAMAZENTA, :CASTFORM, :CHERRIM, :WISHIWASHI, :MINIOR,
+    :MIMIKYU, :CRAMORANT, :MORPEKO, :EISCUE, :PALAFIN, :TERAPAGOS
+  ]
+
   # Fuses two party Pokémon
   def self.fuse_party_pokemon(index1, index2)
     return false if index1 == index2
@@ -30,12 +39,19 @@ module FusionHandlers
      return false
     end
 
+    # Prevent specific alternate forms from being fused
+    if (RESTRICTED_ALT_FORMS.include?(pkmn1.species) && pkmn1.form > 0) ||
+      (RESTRICTED_ALT_FORMS.include?(pkmn2.species) && pkmn2.form > 0)
+     pbMessage(_INTL("Pokémon in special forms cannot be fused!"))
+     return false
+    end
+
     # Create deep copies of both original Pokémon for later restoration
     original_head_clone = pkmn1.clone
     original_body_clone = pkmn2.clone
 
     # Create a new FusedPokemon instance
-    fused_pkmn = FusedPokemon.new(pkmn1.species, pkmn1.level, pkmn1.species, pkmn2.species)
+    fused_pkmn = FusedPokemon.new(pkmn1.species, pkmn1.level, pkmn1, pkmn2)
 
     # Store the actual original data clones inside the correct accessor variables
     fused_pkmn.original_head_data = original_head_clone

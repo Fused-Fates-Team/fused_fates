@@ -50,10 +50,13 @@ module GameData
     end
 
     # Resolves or generates a fusion sprite bitmap 
-    def self.fusion_sprite_bitmap(head_id, body_id, shiny = false, back = false)
+    def self.fusion_sprite_bitmap(head_id, body_id, head_form = 0, body_form = 0, shiny = false, back = false)
+      head_str = head_form > 0 ? "#{head_id}_#{head_form}" : "#{head_id}"
+      body_str = body_form > 0 ? "#{body_id}_#{body_form}" : "#{body_id}"
+
       folder = "Graphics/Pokemon/Fusions/"
-      filename = "#{head_id}_#{body_id}"
-      filename += "_back" if shiny
+      filename = "#{head_str}_#{body_str}"
+      filename += "_back" if back
       filename += "_shiny" if shiny
       
       # Check for custom asprite
@@ -61,13 +64,13 @@ module GameData
       return RPG::Cache.load_bitmap(folder, filename) if path
       
       # Procedural Stitched Fallback with Hue Harmonization
-      return generate_procedural_fusion_bitmap(head_id, body_id, shiny, back)
+      return generate_procedural_fusion_bitmap(head_id, head_form, body_id, body_form, shiny, back)    
     end
 
-    def self.generate_procedural_fusion_bitmap(head_id, body_id, shiny, back)
+    def self.generate_procedural_fusion_bitmap(head_id, head_form, body_id, body_form, shiny, back)
       # Retrieve base species file paths
-      head_path = GameData::Species.sprite_filename(head_id, 0, 0, shiny, false, back)
-      body_path = GameData::Species.sprite_filename(body_id, 0, 0, shiny, false, back)
+      head_path = GameData::Species.sprite_filename(head_id, head_form, 0, shiny)
+      body_path = GameData::Species.sprite_filename(body_id, body_form, 0, shiny)
       
       normal_head_path = GameData::Species.sprite_filename(head_id, 0, 0, false, false, back)
       normal_body_path = GameData::Species.sprite_filename(body_id, 0, 0, false, false, back)
@@ -137,16 +140,19 @@ module GameData
     end
   
     # Resolves or generates a procedural fusion party icon bitmap
-    def self.fusion_icon_bitmap(head_id, body_id, shiny = false)
+    def self.fusion_icon_bitmap(head_id, head_form, body_id, body_form, shiny = false)
+      head_str = head_form > 0 ? "#{head_id}_#{head_form}" : "#{head_id}"
+      body_str = body_form > 0 ? "#{body_id}_#{body_form}" : "#{body_id}"
+
       folder = "Graphics/Pokemon/Fusion Icons/"
-      filename = "#{head_id}_#{body_id}"
+      filename = "#{head_str}_#{body_str}"
       filename += "_shiny" if shiny
       
       path = pbResolveBitmap(folder + filename)
       return RPG::Cache.load_bitmap(folder, filename) if path
       
-      head_path = GameData::Species.icon_filename(head_id, 0, shiny, false)
-      body_path = GameData::Species.icon_filename(body_id, 0, shiny, false)
+      head_path = GameData::Species.icon_filename(head_id, head_form, 0, shiny)
+      body_path = GameData::Species.icon_filename(body_id, body_form, 0, shiny)
       
       head_bmp = pbResolveBitmap(head_path) ? RPG::Cache.load_bitmap("", head_path) : nil
       body_bmp = pbResolveBitmap(body_path) ? RPG::Cache.load_bitmap("", body_path) : nil
@@ -233,8 +239,12 @@ class Battle::Scene::BattlerSprite < RPG::Sprite
     if pkmn.respond_to?(:fused?) && pkmn.fused?
       # Clear standard Essentials animated bitmaps to prevent visual tearing
       @_iconBitmap&.dispose if @_iconBitmap
+
+      # Extract forms safely
+      head_form = pkmn.original_head_data ? pkmn.original_head_data.form : 0
+      body_form = pkmn.original_body_data ? pkmn.original_body_data.form : 0
       
-      custom_bitmap = GameData::Species.fusion_sprite_bitmap(pkmn.fusion_head, pkmn.fusion_body, pkmn.shiny?, back)
+      custom_bitmap = GameData::Species.fusion_sprite_bitmap(pkmn.fusion_head, pkmn.fusion_body, head_form, body_form, pkmn.shiny?, back)
 
       @_iconBitmap = FusionBitmapWrapper.new(custom_bitmap)
 
@@ -261,8 +271,13 @@ class PokemonSprite < Sprite
       @_iconBitmap&.dispose
       @_iconBitmap = nil
       self.color = Color.new(0, 0, 0, 0)
+
+      # Extract forms safely
+      head_form = pkmn.original_head_data ? pkmn.original_head_data.form : 0
+      body_form = pkmn.original_body_data ? pkmn.original_body_data.form : 0
       
-      bitmap = GameData::Species.fusion_sprite_bitmap(pkmn.fusion_head, pkmn.fusion_body, pkmn.shiny?, back)
+      bitmap = GameData::Species.fusion_sprite_bitmap(pkmn.fusion_head, pkmn.fusion_body, head_form, body_form, pkmn.shiny?, back)
+      
       self.bitmap = bitmap if bitmap
       changeOrigin
       return
@@ -287,7 +302,15 @@ class PokemonIconSprite < Sprite
       @pokemon = pkmn
       @animBitmap&.dispose
       @animBitmap = nil
-      bitmap = GameData::Species.fusion_icon_bitmap(pkmn.fusion_head, pkmn.fusion_body, pkmn.shiny?)
+
+      head_form = @pokemon.original_head_data ? @pokemon.original_head_data.form : 0
+      body_form = @pokemon.original_body_data ? @pokemon.original_body_data.form : 0
+
+      bitmap = GameData::Species.fusion_icon_bitmap(
+        @pokemon.fusion_head, head_form, 
+        @pokemon.fusion_body, body_form, 
+        @pokemon.shiny?
+      )
       
       if bitmap
         self.bitmap = bitmap
@@ -380,8 +403,16 @@ class PokemonBoxIcon < IconSprite
       @_iconBitmap&.dispose
       @_iconBitmap = nil
       
-      # Procedurally generate and assign the fusion bitmap
-      bitmap = GameData::Species.fusion_icon_bitmap(@pokemon.fusion_head, @pokemon.fusion_body, @pokemon.shiny?)
+      # Grab the correct forms from the stored clones (safely defaulting to 0)
+      head_form = @pokemon.original_head_data ? @pokemon.original_head_data.form : 0
+      body_form = @pokemon.original_body_data ? @pokemon.original_body_data.form : 0
+      
+      # Pass the forms into the bitmap generator
+      bitmap = GameData::Species.fusion_icon_bitmap(
+        @pokemon.fusion_head, head_form, 
+        @pokemon.fusion_body, body_form, 
+        @pokemon.shiny?
+      )
       
       if bitmap
         self.bitmap = bitmap
