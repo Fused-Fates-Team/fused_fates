@@ -36,31 +36,28 @@ module WonderLinkDecoder
       party_owner_name = binary_stream[offset, owner_name_len]
       offset += owner_name_len
 
-      # Each Pokémon block is precisely 31 bytes:
-      # Species (2) + Level (1) + Item (2) + Fusion Head (2) + Fusion Body (2) + 
-      # Ability (2) + Moves (8) + IVs (6) + EVs (6) = 31 bytes.
       while offset < binary_stream.bytesize
-        # Unpack Species, Level, Item ID (5 bytes)
+        # Unpack Species, Level, Item ID 
         species_id, level, item_id = binary_stream.unpack("@#{offset}nCn")
         offset += 5
 
-        # Unpack Fusion Head and Body IDs (4 bytes)
+        # Unpack Fusion Head and Body IDs 
         f_head, f_body = binary_stream.unpack("@#{offset}nn")
         offset += 4
 
-        # Unpack Ability ID (2 bytes)
+        # Unpack Ability ID 
         ability_id = binary_stream.unpack("@#{offset}n").first
         offset += 2
 
-        # Unpack Moveset IDs (8 bytes - 4 moves)
+        # Unpack Moveset IDs 
         move_data = binary_stream.unpack("@#{offset}nnnn")
         offset += 8
 
-        # Unpack IVs (6 bytes)
+        # Unpack IVs
         iv_data = binary_stream.unpack("@#{offset}CCCCCC")
         offset += 6
 
-        # Unpack EVs (6 bytes)
+        # Unpack EVs
         ev_data = binary_stream.unpack("@#{offset}CCCCCC")
         offset += 6
 
@@ -118,11 +115,11 @@ module WonderLinkDecoder
           pkmn.learn_move(m_sym) if m_sym
         end
 
-        # Restore IVs
         stat_keys = [:HP, :ATTACK, :DEFENSE, :SPECIAL_ATTACK, :SPECIAL_DEFENSE, :SPEED]
+        # Restore IVs
         stat_keys.each_with_index do |stat, idx|
           if pkmn.iv.is_a?(Hash)
-            pkmn.iv[stat.to_s] = iv_data[idx]
+            pkmn.iv[stat] = iv_data[idx]
           elsif pkmn.iv.respond_to?(:[]=)
             pkmn.iv[stat] = iv_data[idx]
           end
@@ -131,7 +128,7 @@ module WonderLinkDecoder
         # Restore EVs
         stat_keys.each_with_index do |stat, idx|
           if pkmn.ev.is_a?(Hash)
-            pkmn.ev[stat.to_s] = ev_data[idx]
+            pkmn.ev[stat] = ev_data[idx]
           elsif pkmn.ev.respond_to?(:[]=)
             pkmn.ev[stat] = ev_data[idx]
           end
@@ -141,6 +138,15 @@ module WonderLinkDecoder
         if defined?(Pokemon::Owner) && pkmn.respond_to?(:owner) && pkmn.owner
           pkmn.owner.name = ot_name
         end
+
+        # Unpack Nature, Form, and Personal ID
+        nature_id, form_id, personal_id = binary_stream.unpack("@#{offset}nnV")
+        offset += 8
+
+        nature_sym = nature_id > 0 ? GameData::Nature.keys[nature_id] : nil
+        pkmn.nature = nature_sym if nature_sym
+        pkmn.form = form_id if pkmn.respond_to?(:form=)
+        pkmn.personalID = personal_id if pkmn.respond_to?(:personalID=)
 
         # Recalculate stats with all attributes applied
         pkmn.calc_stats

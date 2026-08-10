@@ -55,10 +55,10 @@ module WonderLinkEncoder
         end
         item = item_sym == 0 ? 0 : (GameData::Item.keys.index(item_sym) || 0)
 
-        # Pack Species (16-bit), Level (8-bit), and Item ID (16-bit)
+        # Pack Species, Level, and Item ID 
         binary_stream << [species, level, item].pack("nCn")
 
-        # Fusion IDs if applicable (16-bit each)
+        # Fusion IDs if applicable 
         raw_f_head = pkmn.respond_to?(:fusion_head) ? pkmn.fusion_head : 0
         f_head_sym = case raw_f_head
         when Symbol
@@ -87,7 +87,7 @@ module WonderLinkEncoder
 
         binary_stream << [f_head, f_body].pack("nn")
 
-        # Ability serialization (16-bit ID)
+        # Ability serialization
         raw_ability = pkmn.respond_to?(:ability) ? pkmn.ability : nil
         ability_sym = case raw_ability
         when Symbol
@@ -102,7 +102,7 @@ module WonderLinkEncoder
         ability = ability_sym == 0 ? 0 : (GameData::Ability.keys.index(ability_sym) || 0)
         binary_stream << [ability].pack("n")
 
-        # Moveset serialization (Up to 4 moves, 16-bit ID each)
+        # Moveset serialization
         move_ids = []
         4.times do |i|
           move = pkmn.moves[i]
@@ -121,22 +121,22 @@ module WonderLinkEncoder
         end
         binary_stream << move_ids.pack("nnnn")
 
-        # IVs packed as 6 single bytes
+        # IVs packed
         iv_hash = pkmn.iv
         ivs = [:HP, :ATTACK, :DEFENSE, :SPECIAL_ATTACK, :SPECIAL_DEFENSE, :SPEED].map do |stat|
           if iv_hash.is_a?(Hash)
-            iv_hash[stat.to_s] || 0
+            iv_hash[stat] || 0
           else
             31
           end
         end
         binary_stream << ivs.pack("CCCCCC")
 
-        # EVs packed as 6 single bytes
+        # EVs packed
         ev_hash = pkmn.ev
         evs = [:HP, :ATTACK, :DEFENSE, :SPECIAL_ATTACK, :SPECIAL_DEFENSE, :SPEED].map do |stat|
           if ev_hash.is_a?(Hash)
-            ev_hash[stat.to_s] || 0
+            ev_hash[stat] || 0
           else
             0
           end
@@ -153,6 +153,29 @@ module WonderLinkEncoder
 
         binary_stream << [ot_name.bytesize].pack("C")
         binary_stream << ot_name
+
+        # Nature 
+        raw_nature = pkmn.respond_to?(:nature) ? pkmn.nature : nil
+        nature_sym = case raw_nature
+        when Symbol
+          raw_nature
+        when String
+          raw_nature.to_sym
+        when Integer
+          raw_nature > 0 ? (GameData::Nature.keys[raw_nature] || 0) : 0
+        else
+          raw_nature ? (GameData::Nature.try_get(raw_nature)&.id || 0) : 0
+        end
+        nature_id = nature_sym == 0 ? 0 : (GameData::Nature.keys.index(nature_sym) || 0)
+
+        # Form
+        form_id = pkmn.respond_to?(:form) ? (pkmn.form || 0) : 0
+
+        # Personal ID
+        personal_id = pkmn.respond_to?(:personalID) ? (pkmn.personalID || 0) : 0
+
+        # Pack Nature, Form, and Personal ID
+        binary_stream << [nature_id, form_id, personal_id].pack("nnV")
       end
 
       # Compress the Data
