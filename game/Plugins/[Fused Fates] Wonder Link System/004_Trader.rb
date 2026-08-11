@@ -13,6 +13,7 @@ module WonderLinkTrader
       return nil
     end
 
+    # Delegate party array extraction to WonderLinkDecoder
     decoded_data = WonderLinkDecoder.decode_party_array(code)
 
     if decoded_data.nil? || decoded_data[:party].nil? || decoded_data[:party].empty?
