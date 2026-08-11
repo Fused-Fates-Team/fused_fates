@@ -48,9 +48,9 @@ module WonderLinkDecoder
         f_head, f_body = binary_stream.unpack("@#{offset}nn")
         offset += 4
 
-        # Unpack Ability ID 
-        ability_id = binary_stream.unpack("@#{offset}n").first
-        offset += 2
+        # Unpack Ability ID and Ability Index 
+        ability_id, ability_index = binary_stream.unpack("@#{offset}nC")
+        offset += 3
 
         # Unpack Moveset IDs 
         move_data = binary_stream.unpack("@#{offset}nnnn")
@@ -105,8 +105,22 @@ module WonderLinkDecoder
           pkmn.fusion_body = f_body_sym
         end
 
-        # Restore Ability
+        # Restore Ability Index and Ability
+        if pkmn.respond_to?(:ability_index=) && ability_index
+          pkmn.ability_index = ability_index
+        end
+
+        ability_sym = ability_id > 0 ? GameData::Ability.keys[ability_id] : nil
+
         if ability_sym && pkmn.respond_to?(:ability=)
+          if pkmn.respond_to?(:fused?) && pkmn.fused? && ability_sym.to_s.start_with?("ASONE_")
+            parts = ability_sym.to_s.sub("ASONE_", "").split("_")
+            if parts.length >= 2
+              head_abil = parts[0].to_sym
+              body_abil = parts[1..-1].join("_").to_sym
+              FusedAbilities.register_combo(head_abil, body_abil)
+            end
+          end
           pkmn.ability = ability_sym
         end
 

@@ -100,7 +100,8 @@ module WonderLinkEncoder
           raw_ability ? (GameData::Ability.try_get(raw_ability)&.id || 0) : 0
         end
         ability = ability_sym == 0 ? 0 : (GameData::Ability.keys.index(ability_sym) || 0)
-        binary_stream << [ability].pack("n")
+        ability_index = pkmn.respond_to?(:ability_index) ? (pkmn.ability_index || 0) : 0
+        binary_stream << [ability, ability_index].pack("nC")
 
         # Moveset serialization
         move_ids = []

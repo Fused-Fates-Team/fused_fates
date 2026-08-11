@@ -158,8 +158,11 @@ end
 # class FusedPokemon
 #==================================================================
 class FusedPokemon
+  attr_accessor :ability_override
+
   # Override ability getter
   def ability
+    return GameData::Ability.get(@ability_override) if defined?(@ability_override) && @ability_override
     return super unless fused?
     return super if !@original_head_data || !@original_body_data
     
@@ -206,7 +209,7 @@ class FusedPokemon
     if FusedAbilities.blacklisted_single?(head_abil) || 
       FusedAbilities.blacklisted_single?(body_abil) || 
       FusedAbilities.blacklisted_pair?(head_abil, body_abil)
-      return GameData::Ability.get(head_id)
+      return GameData::Ability.get(head_abil)
     end
 
     chosen_ability = head_abil
@@ -214,6 +217,21 @@ class FusedPokemon
     # Register and return the combined ability proxy
     combo_id = FusedAbilities.register_combo(head_abil, body_abil)
     return GameData::Ability.get(combo_id) || GameData::Ability.get(chosen_ability)
+  end
+
+  def ability=(value)
+    if fused?
+      if value.is_a?(GameData::Ability)
+        @ability_override = value.id
+      elsif value.is_a?(Symbol) || value.is_a?(String)
+        @ability_override = value.to_sym
+      else
+        @ability_override = value.respond_to?(:id) ? value.id : nil
+      end
+      calc_stats if respond_to?(:calc_stats)
+    else
+      super(value)
+    end
   end
 
   def ability_id
@@ -226,7 +244,7 @@ end
 # class Pokemon
 #==================================================================
 class Pokemon
-  alias fusion_hasAbility? hasAbility? unless method_defined?(:fusion_hasAbility?)
+  alias_method :fusion_hasAbility?, :hasAbility? unless method_defined?(:fusion_hasAbility?)
 
   def hasAbility?(value = nil)
     current_ability = self.ability_id
