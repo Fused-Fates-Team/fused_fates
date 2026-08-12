@@ -6,146 +6,202 @@
 # module SecretBasePlacer
 #==================================================================
 module SecretBasePlacer
+  # Calculates the X and Y coordinates of the tile directly in front of the player
   def self.get_facing_coords
     x = $game_player.x
     y = $game_player.y
+
     case $game_player.direction
     when 2 then y += 1 # Down
     when 4 then x -= 1 # Left
     when 6 then x += 1 # Right
     when 8 then y -= 1 # Up
     end
+    
     return x, y
   end
 
-  def self.valid_target_tile?
-    x, y = get_facing_coords
-    return false unless $game_map.valid?(x, y)
-    return false unless $game_map.passable?(x, y, 0, $game_player)
+  # Validates if a decoration can be placed at the target coordinates
+  def self.valid_target_tile?(x, y)
+    # Check if the tile is out of map boundaries
+    return false if x < 0 || y < 0 || x >= $game_map.width || y >= $game_map.height
     
+    # Check if an event already exists on this specific tile
     $game_map.events.values.each do |event|
       return false if event.x == x && event.y == y
     end
-    return false if $game_player.x == x && $game_player.y == y
-    return true
-  end
-
-  def self.place_decoration(id)
-    return false unless Decoration.exists?(id)
-    unless valid_target_tile?
-      pbMessage(_INTL("You can't place a decoration there!"))
-      return false
-    end
-
-    if $Player.respond_to?(:has_decoration?) && !$Player.has_decoration?(id, 1)
-      pbMessage(_INTL("You don't own this decoration!"))
-      return false
-    end
-
-    x, y = get_facing_coords
-    map_id = $game_map.map_id
-
-    $PokemonGlobal.placed_decorations ||= {}
-    $PokemonGlobal.placed_decorations[map_id] ||= {}
-
-    # Find next available instance ID
-    instance_id = 1
-    while $PokemonGlobal.placed_decorations[map_id][instance_id] || $game_map.events[instance_id]
-      instance_id += 1
-    end
-
-    # Save data
-    $PokemonGlobal.placed_decorations[map_id][instance_id] = {
-      id: id,
-      x: x,
-      y: y
-    }
-
-    if $Player.respond_to?(:remove_decoration)
-      $Player.remove_decoration(id, 1)
-    end
-
-    spawn_event(instance_id, { id: id, x: x, y: y })
-    pbMessage(_INTL("Placed decoration successfully!"))
-    $game_map.need_refresh = true
-    return true
-  end
-
-  def self.spawn_event(instance_id, data)
-    return if $game_map.events[instance_id]
-
-    map_id = $game_map.map_id
-
-    # Create a valid RPG::Event object so Game_Event.new receives an object with an ID and name
-    rpg_event = RPG::Event.new(data[:x], data[:y])
-    rpg_event.id = instance_id
-    rpg_event.name = "Decoration_#{instance_id}"
-
-    new_game_event = Game_Event.new(map_id, rpg_event)
-    new_game_event.moveto(data[:x], data[:y])
     
-    # CRITICAL: Force transparent to false so the sprite renders immediately
-    new_game_event.transparent = false
+    # Check passability
+    return false unless $game_map.passable?(x, y, 0)
+    
+    return true
+  end
 
-    $game_map.events[instance_id] = new_game_event
+  # Handles the logic for placing a new decoration
+  def self.place_decoration(id)
+    x, y = get_facing_coords
 
-    # Live injection utilizing v21.1's .spriteset property accessor or @spriteset
-    spriteset = $scene.respond_to?(:spriteset) ? $scene.spriteset : $scene.instance_variable_get(:@spriteset)
-    if spriteset
+    unless valid_target_tile?(x, y)
+      pbPlayBuzzerSE
+      return false
+    end
+
+    # Generate a unique instance ID using the current time and a random number
+    instance_id = "#{Time.now.to_i}_#{rand(1000)}"
+    data = { id: id, x: x, y: y}
+
+    # Initialize the hash for this map
+    $PokemonGlobal.placed_decorations[$game_map.map_id] ||= {}
+
+    # Save the data so it loads on map re-entry
+    $PokemonGlobal.placed_decorations[$game_map.map_id][instance_id] = data
+
+    # Physically spawn the event into the map
+    spawn_event(instance_id, data)
+
+    pbPlayDecisionSE
+    return true
+  end
+
+  # Physically spawns the event and links a graphic sprite to it
+  def self.spawn_event(instance_id, data)
+    dec_id = data[:id]
+    x = data[:x]
+    y = data[:y]
+
+    # Generate the Game_Event
+    event = Game_Event.create_decoration_event($game_map, dec_id, x, y, instance_id)
+
+    # Add the newly created event to the map's active event list
+    $game_map.events[event.id] = event
+
+    # Force the sprite to draw immediately
+    if $scene.is_a?(Scene_Map) 
+      spriteset = $scene.instance_variable_get(:@spritesets)
+      # Bypass encapsulation to fetch viewport and character array
       viewport = spriteset.instance_variable_get(:@viewport1)
       char_sprites = spriteset.instance_variable_get(:@character_sprites)
       
       if viewport && char_sprites
-        exists = char_sprites.any? { |s| s.is_a?(DecorationSprite) && s.character == new_game_event }
-        unless exists
-          new_sprite = DecorationSprite.new(viewport, data[:id], new_game_event)
-          char_sprites.push(new_sprite)
-        end
+        # Spawn the graphic instantly and add it to the active screen
+        new_sprite = DecorationSprite.new(viewport, dec_id, event)
+        char_sprites.push(new_sprite)
       end
     end
-  end
 
-  def self.pickup_decoration(instance_id)
-    map_id = $game_map.map_id
-    return false unless $PokemonGlobal.placed_decorations && $PokemonGlobal.placed_decorations[map_id]
-    
-    data = $PokemonGlobal.placed_decorations[map_id][instance_id]
-    return false unless data
-
-    decoration_id = data[:id]
-    
-    # Remove saved data
-    $PokemonGlobal.placed_decorations[map_id].delete(instance_id)
-    
-    # Remove logical event from map
-    if $game_map.events[instance_id]
-      $game_map.events.delete(instance_id)
+    # Automatically refresh the active map spriteset
+    if $scene.is_a?(Scene_Map) && $scene.spriteset
+      $scene.spriteset.add_decoration_sprite(event)
     end
 
-    # Clean up associated sprites from viewport character sprites array
-    if $scene.is_a?(Scene_Map)
-      spriteset = $scene.respond_to?(:spriteset) ? $scene.spriteset : $scene.instance_variable_get(:@spriteset)
-      if spriteset
-        char_sprites = spriteset.instance_variable_get(:@character_sprites)
-        if char_sprites
-          char_sprites.delete_if do |s|
-            if s.is_a?(DecorationSprite) && (s.character == nil || !$game_map.events.values.include?(s.character))
-              s.dispose
-              true
-            else
-              false
+    return event
+  end
+
+  # Removes a decoration from the map and the save data
+  def self.pickup_decoration(instance_id)
+    # Locate the event on the map matching the provided instance_id
+    target_event = $game_map.events.values.find { |e| e.is_decoration && e.instance_id == instance_id }
+
+    if target_event
+      dec_id = target_event.decoration_id
+
+      # Remove from the global save data
+      if $PokemonGlobal.placed_decorations[$game_map.map_id]
+        $PokemonGlobal.placed_decorations[$game_map.map_id].delete(instance_id)
+      end
+
+      # Remove the event from the map's logic array
+      $game_map.events.delete(target_event.id)
+
+      # Locate the visual sprite and permanently dispose of it
+      if $scene.is_a?(Scene_Map)
+        spriteset = $scene.instance_variable_get(:@spritesets)
+        if spriteset
+          char_sprites = spriteset.instance_variable_get(:@character_sprites)
+          if char_sprites
+            sprite = char_sprites.find { |s| s.character == target_event }
+            if sprite
+              sprite.dispose
+              char_sprites.delete(sprite)
             end
           end
         end
       end
+
+      # Clear the event's internal data to prevent memory leaks
+      target_event.erase
+
+      pbPlayDecisionSE
+
+      # Return the decoration ID so the calling script can give the item back to the player
+      return dec_id
     end
 
-    if $Player.respond_to?(:add_decoration)
-      $Player.add_decoration(decoration_id, 1)
-    end
-    pbMessage(_INTL("Picked up placed decoration."))
-    $game_map.need_refresh = true
-    return true
+    return nil
+  end
+end
+
+#==================================================================
+# class Game_Event < Game_Character
+#==================================================================
+class Game_Event < Game_Character
+  attr_accessor :is_decoration
+  attr_accessor :decoration_id
+  attr_accessor :instance_id
+
+  # Transforms a standard event into a function decoration
+  def setup_as_decoration(dec_id, instance_id)
+    refresh
+    
+    @is_decoration = true
+    @decoration_id = dec_id
+    @instance_id = instance_id
+
+    # Clear out graphics to avoid drawing standard sprites
+    @character_name = ""
+    @character_hue = 0
+
+    @transparent = false
+
+    @step_anime = false
+    @walk_anime = false
+    @direction_fix = true
+    @move_speed = 0
+
+    # Dynamic passability
+    is_passable = Decoration.passable?(dec_id)
+    @through = is_passable
+    @priority_type = is_passable ? 0 : 1
+  end
+
+  # Dynamically spawn a new event into the map
+  def self.create_decoration_event(map, dec_id, x, y, instance_id)
+    # Generate a dummy event in memory
+    rpg_event = RPG::Event.new(x, y)
+
+    # Assign a unique Event ID higher than the existing event IDs
+    existing_keys = map.events.keys
+    rpg_event.id = existing_keys.empty? ? 1 : existing_keys.max + 1
+    rpg_event.name = "Decoration_#{instance_id}"
+
+    # Create a blank event page
+    page = RPG::Event::Page.new
+    page.graphic.character_name = ""
+    page.trigger = 0 # Action Button trigger
+
+    # Assign the page to the event
+    rpg_event.pages = [page]
+
+    # Initialize the actual Game_Event object
+    event = Game_Event.new(map.map_id, rpg_event, map)
+
+    # Configure the custom decoration parameters
+    event.setup_as_decoration(dec_id, instance_id)
+
+    # Physically move the event to the target coordinates
+    event.moveto(x, y)
+
+    return event
   end
 end
 

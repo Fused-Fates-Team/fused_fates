@@ -10,21 +10,31 @@ module Decoration
   # Format: ID => {name: "...", category: :type, graphic: "filename" }
   DECORATIONS = {
     # Dolls
-    :TURTWIG_DOLL => { name: "Turtwig Doll", category: :doll, graphic: "turtwig_doll"},
-    :CHIMCHAR_DOLL => { name: "Chimchar Doll", category: :doll, graphic: "chimchar_doll"},
-    :PIPLUP_DOLL => { name: "Piplup Doll", category: :doll, graphic: "piplup_doll"}
+    :TURTWIG_DOLL => { name: "Turtwig Doll", category: :doll, graphic: "turtwig_doll.png"},
+    :CHIMCHAR_DOLL => { name: "Chimchar Doll", category: :doll, graphic: "chimchar_doll.png"},
+    :PIPLUP_DOLL => { name: "Piplup Doll", category: :doll, graphic: "piplup_doll.png"}
   }
+
+  # Defines which categories players can walk over
+  PASSABLE_CATEGORIES = [:carpet, :mat, :poster, :cushion]
+
+  # Checks if a given decoration ID is passable based on its category
+  def self.passable?(id)
+    data = get(id)
+    return false unless data
+    return PASSABLE_CATEGORIES.include?(data[:category])
+  end
 
   # Checks if a given decoration ID is recognized as valid
   def self.exists?(id)
     return false if id.nil?
-    return DECORATIONS.key?(id.to_sym)
+    return DECORATIONS.key?(id)
   end
 
   # Retrieves the properties hash for a valid decoration ID
   def self.get(id)
     return nil unless exists?(id)
-    return DECORATIONS[id.to_sym]
+    return DECORATIONS[id]
   end
 
   # Returns an array of all defined decoration identifiers
