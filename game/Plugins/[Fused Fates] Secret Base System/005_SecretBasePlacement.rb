@@ -1,5 +1,5 @@
 #================================================================================================
-# Pokémon Fused Fates Secret Base System - 006_SecretBasePlacement.rb
+# Pokémon Fused Fates Secret Base System - 005_SecretBasePlacement.rb
 #================================================================================================
 
 #==================================================================
@@ -76,22 +76,21 @@ module SecretBasePlacer
     $game_map.events[event.id] = event
 
     # Force the sprite to draw immediately
-    if $scene.is_a?(Scene_Map) 
-      spriteset = $scene.instance_variable_get(:@spritesets)
-      # Bypass encapsulation to fetch viewport and character array
-      viewport = spriteset.instance_variable_get(:@viewport1)
-      char_sprites = spriteset.instance_variable_get(:@character_sprites)
-      
-      if viewport && char_sprites
-        # Spawn the graphic instantly and add it to the active screen
-        new_sprite = DecorationSprite.new(viewport, dec_id, event)
-        char_sprites.push(new_sprite)
-      end
-    end
+    if $scene.is_a?(Scene_Map)
+      spriteset = nil
 
-    # Automatically refresh the active map spriteset
-    if $scene.is_a?(Scene_Map) && $scene.spriteset
-      $scene.spriteset.add_decoration_sprite(event)
+      if $scene.spriteset
+        spriteset = $scene.spriteset($game_map.map_id)
+      end
+
+      if spriteset
+        viewport = spriteset.instance_variable_get(:@viewport1)
+        char_sprites = spriteset.instance_variable_get(:@character_sprites)
+
+        if viewport && char_sprites
+          char_sprites.push(Sprite_Character.new(viewport, event))
+        end
+      end
     end
 
     return event
@@ -115,7 +114,12 @@ module SecretBasePlacer
 
       # Locate the visual sprite and permanently dispose of it
       if $scene.is_a?(Scene_Map)
-        spriteset = $scene.instance_variable_get(:@spritesets)
+        spriteset = nil
+
+        if $scene.spriteset
+          spriteset = $scene.spriteset($game_map.map_id)
+        end
+
         if spriteset
           char_sprites = spriteset.instance_variable_get(:@character_sprites)
           if char_sprites
@@ -151,27 +155,32 @@ class Game_Event < Game_Character
 
   # Transforms a standard event into a function decoration
   def setup_as_decoration(dec_id, instance_id)
-    refresh
-    
     @is_decoration = true
     @decoration_id = dec_id
     @instance_id = instance_id
 
-    # Clear out graphics to avoid drawing standard sprites
-    @character_name = ""
-    @character_hue = 0
+    # Dynamic Graphic Assignment
+    data = Decoration.get(dec_id)
+    if data && data[:graphic]
+      graphic_name = data[:graphic].gsub(/\.png$/i, '')
 
-    @transparent = false
+      @character_name = "Decorations/#{graphic_name}"
+    end
 
-    @step_anime = false
-    @walk_anime = false
-    @direction_fix = true
-    @move_speed = 0
-
-    # Dynamic passability
+    @always_on_top = false
     is_passable = Decoration.passable?(dec_id)
     @through = is_passable
-    @priority_type = is_passable ? 0 : 1
+
+    # Stop decorations from animating like walking NPCs
+    @step_anime = false
+    @direction_fix = true
+
+    if @page
+      @page.graphic.character_name = @character_name
+      @page.always_on_top = false
+      @page.through = is_passable
+      @page.graphic.direction = 2
+    end
   end
 
   # Dynamically spawn a new event into the map
@@ -186,7 +195,6 @@ class Game_Event < Game_Character
 
     # Create a blank event page
     page = RPG::Event::Page.new
-    page.graphic.character_name = ""
     page.trigger = 0 # Action Button trigger
 
     # Assign the page to the event

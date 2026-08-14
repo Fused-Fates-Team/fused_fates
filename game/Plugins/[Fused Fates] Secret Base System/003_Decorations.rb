@@ -58,11 +58,10 @@ module Decoration
     data = get(id)
     return nil unless data
 
-    category = data[:category].to_s
-    graphic = data[:graphic]
+    graphic = data[:graphic].gsub(/\.png$/i, '')
     return nil if graphic.nil? || graphic.empty?
 
-    folder = "Graphics/Decorations/#{category}/"
+    folder = "Graphics/Decorations/Decorations/"
 
     begin
       return RPG::Cache.load_bitmap(folder, graphic)
